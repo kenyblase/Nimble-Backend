@@ -1,0 +1,58 @@
+import express from 'express'
+import cookieParser from 'cookie-parser'
+import {connectdb} from './db/connectdb.js'
+import authRoutes from './routes/authRoute.js'
+import adminRoutes from './routes/adminRoute.js'
+import messageRoutes from './routes/messageRoute.js'
+import productRoutes from './routes/productRoute.js'
+import orderRoutes from './routes/orderRoute.js'
+import negotiationRoutes from './routes/negotiationRoutes.js'
+import paymentRoutes from './routes/paymentRoute.js'
+import withdrawalRoutes from './routes/withdrawalRoute.js'
+import settingsRoutes from './routes/settingsRoute.js'
+import notificationRoutes from './routes/notificationRoute.js'
+import webhookRoute from './routes/webhookRoute.js'
+import cors from 'cors'
+import {app, server} from './utils/socket.js'
+import './utils/cron.js'
+
+const PORT = process.env.PORT || 5000
+
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://nimble-proj.pages.dev',
+    'https://frontend-ea8.pages.dev'
+  ];
+  
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, origin);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true
+  }));
+
+app.use(express.json({limit: '10mb'}))
+app.use(cookieParser())
+
+app.use('/api/auth', authRoutes)
+app.use('/api/admin', adminRoutes)
+app.use('/api/messages', messageRoutes)
+app.use('/api/products', productRoutes)
+app.use('/api/orders', orderRoutes)
+app.use('/api/offers', negotiationRoutes)
+app.use('/api/payments', paymentRoutes)
+app.use('/api/withdrawals', withdrawalRoutes)
+app.use('/api/notifications', notificationRoutes)
+app.use('/api/settings', settingsRoutes)
+app.use('/api/webhook', webhookRoute)
+
+server.listen(PORT, ()=> {
+    connectdb()
+    console.log(`server is running on port ${PORT}`)
+})
+
+
