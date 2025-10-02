@@ -1,4 +1,5 @@
 import User from "../models/userModel.js"
+import Admin from "../models/adminModel.js"
 import Order from "../models/orderModel.js"
 import Transaction from "../models/TransactionModel.js"
 import Product from "../models/productModel.js"
@@ -13,35 +14,19 @@ import axios from 'axios'
 export const adminLogIn = async (req, res) => {
     const {email, password} = req.body
     try {
-        const user = await User.findOne({email})
-        if(!user) {
-            return res.status(400).json({success: false, message: 'Invalid Credentials'})
-        }
+        const admin = await Admin.findOne({ email });
+        if (!admin) return res.status(404).json({message: 'Admin Not Found'})
 
-        if(user.role !== 'ADMIN'){
-            return res.status(400).json({message: 'Please Log in to an admin account'})
-        }
+        const isMatchingPasswords = await bcryptjs.compare(password, admin.password)
 
-        const isPasswordValid = await bcryptjs.compare(password, user.password)
+        if(!isMatchingPasswords) return res.status(400).json({message: 'Invalid Credentials'})
 
-        if(!isPasswordValid){
-            return res.status(400).json({sucess: false, message:'Invalid Password'})
-        }
+        generateTokenAndSetCookie(res, admin._id, true)
 
-        const token = generateTokenAndSetCookie(res, user._id)
-
-        user.lastlogin = new Date()
-        
-        await user.save()
-
-        res.status(200).json({
-            success: true,
-            message: 'Logged In Successfully',
-            user: {
-                ...user._doc, password:undefined
-            },
-            token
-        })
+        res.status(200).json({admin: {
+        ...admin._doc,
+        password: undefined
+        }, message: 'Login Successful'})
     } catch (error) {
         console.log('Error Signing In',error)
         res.status(400).json({success:false, message:error.message})

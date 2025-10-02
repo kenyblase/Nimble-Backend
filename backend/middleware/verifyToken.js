@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken'
 import User from '../models/userModel.js'
+import Admin from '../models/adminModel.js'
 
 export const verifyToken = async(req, res, next)=>{
     const token = req.cookies?.token || req.headers.authorization?.split(' ')[1]
@@ -11,17 +12,17 @@ export const verifyToken = async(req, res, next)=>{
 
         if(!decoded) return res.status(401).json({success:false, message:'Unauthorized - Invalid Token'})
 
-        const user = await User.findById(decoded.userId)
+        const user = await User.findById(decoded.userId) ?? await Admin.findById(decoded.userId)
 
         if(!user){
-            return res.status(400).json({message: 'User not found'})
-        }
-
-        if(user.isBlocked === true){
-            return res.status(400).json({message: 'Your account has been suspended - Please contact admin'})
+            return res.status(404).json({message: 'User not found'})
         }
 
         req.userId = decoded.userId
+
+        if(decoded.isAdmin){
+            req.isAdmin = true
+        }
          
         next()
 
@@ -29,6 +30,7 @@ export const verifyToken = async(req, res, next)=>{
         if (error.name === "TokenExpiredError") {
             return res.status(401).json({ success: false, message: "Session expired. Please log in again." });
         }
+        console.log(error)
         return res.status(403).json({ success: false, message: "Invalid token." })
     }
 }

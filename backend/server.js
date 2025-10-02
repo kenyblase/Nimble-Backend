@@ -19,9 +19,7 @@ import './utils/cron.js'
 const PORT = process.env.PORT || 5000
 
 const allowedOrigins = [
-    'http://localhost:3000',
-    'https://nimble-proj.pages.dev',
-    'https://frontend-ea8.pages.dev'
+    process.env.FRONTEND_URL
   ];
   
   app.use(cors({

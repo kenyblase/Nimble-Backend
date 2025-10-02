@@ -3,6 +3,7 @@ import bcryptjs from 'bcryptjs'
 import { generateVerificationCode } from '../utils/generateVerificationCode.js'
 import {generateTokenAndSetCookie} from '../utils/generateTokenAndSetCookie.js'
 import { sendVerificationEmail, sendWelcomeEmail, sendPasswordResetEmail, sendResetSuccessEmail } from '../mailTrap/emails.js'
+import Admin from '../models/adminModel.js'
 
 export const signUp = async (req, res) => {
     const {email, password, firstName, lastName} = req.body
@@ -117,6 +118,7 @@ export const resendVerificationEmail = async(req, res)=>{
         res.status(500).json({success:false, message:'Internal Server Error'})
     }
 }
+
 export const resendResetPasswordEmail = async(req, res)=>{
     try {
         const {email} = req.body
@@ -258,7 +260,7 @@ export const resetPassword = async (req, res)=> {
 
 export const checkAuth = async (req, res)=>{
     try {
-        const user = await User.findById(req.userId)
+        const user = await User.findById(req.userId) ?? await Admin.findById(req.userId)
 
         if(!user) {
             return res.status(400).json({success: false, message: 'User Not Found'})
