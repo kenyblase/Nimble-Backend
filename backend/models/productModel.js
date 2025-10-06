@@ -94,7 +94,9 @@ const productSchema = new mongoose.Schema({
         type: String,
         enum: ['pending', 'active', 'sold', 'in-review'],
         default: "pending"   
-    } 
+    },
+    views: { type: Number, default: 0 },
+    purchases: { type: Number, default: 0 },
 }, {timestamps: true});
 
 const Product = mongoose.model('Product', productSchema);

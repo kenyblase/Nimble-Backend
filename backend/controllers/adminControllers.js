@@ -33,34 +33,112 @@ export const adminLogIn = async (req, res) => {
     }
 }
 
-export const getDashboardAnalytics = async(req, res)=>{
-    try {
-        const [totalCompletedOrders, activeListings, activeUsers, totalPending] = await Promise.all(
-            [
-                await Order.find({transactionStatus: "completed"}), 
-                await Product.find({status: 'active'}), 
-                await User.countDocuments(),
-                await Product.countDocuments({status: 'pending'})
-            ])
-            
-        let totalSales = 0
+export const getDashboardAnalytics = async (req, res) => {
+  try {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
 
-        totalCompletedOrders.forEach(order=>totalSales += order.totalAmount)
+    const lastWeek = new Date(today);
+    lastWeek.setDate(today.getDate() - 7);
 
-        let totalActiveListings = 0
+    const [totalCompletedOrders, activeListings, activeUsers, totalPending] =
+      await Promise.all([
+        Order.find({ transactionStatus: "completed" }),
+        Product.find({ status: "active" }),
+        User.countDocuments({status: 'active'}),
+        Product.countDocuments({ status: "pending" }),
+      ]);
 
-        activeListings.forEach(listing=>totalActiveListings += listing.price)
+    const totalSales = totalCompletedOrders.reduce(
+      (sum, order) => sum + (order.totalAmount || 0),
+      0
+    );
 
-        res.status(200).json({message: 'Analytics fetched successfully', data:{
-            totalSales,
-            activeListings: totalActiveListings,
-            activeUsers,
-            totalPending
-        }})
-    } catch (error) {
-        res.status(500).json({message: "Internal Server Error"})
-    }
-}
+    const totalActiveListings = activeListings.reduce(
+      (sum, listing) => sum + (listing.price || 0),
+      0
+    );
+
+    const [yesterdayOrders, lastWeekListings, yesterdayUsers, yesterdayPending] =
+      await Promise.all([
+
+        Order.find({
+          transactionStatus: "completed",
+          createdAt: { $gte: yesterday, $lt: today },
+        }),
+
+        Product.find({
+          status: "active",
+          createdAt: { $gte: lastWeek, $lt: today },
+        }),
+
+        User.countDocuments({
+          status: 'active',
+          createdAt: { $gte: yesterday, $lt: today },
+        }),
+  
+        Product.countDocuments({
+          status: "pending",
+          createdAt: { $gte: yesterday, $lt: today },
+        }),
+      ]);
+
+    const yesterdaySales = yesterdayOrders.reduce(
+      (sum, order) => sum + (order.totalAmount || 0),
+      0
+    );
+
+    const lastWeekListingTotal = lastWeekListings.reduce(
+      (sum, listing) => sum + (listing.price || 0),
+      0
+    );
+
+    const calcChange = (current, prev) => {
+      if (!prev || prev === 0) return 0;
+      return ((current - prev) / prev) * 100;
+    };
+
+    const salesChange = calcChange(totalSales, yesterdaySales);
+    const listingChange = calcChange(totalActiveListings, lastWeekListingTotal);
+    const userChange = calcChange(activeUsers, yesterdayUsers);
+    const pendingChange = calcChange(totalPending, yesterdayPending);
+
+    res.status(200).json({
+      message: "Analytics fetched successfully",
+      data: {
+        totalSales: {
+          value: totalSales,
+          change: salesChange.toFixed(1),
+          trend: salesChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+        activeListings: {
+          value: totalActiveListings,
+          change: listingChange.toFixed(1),
+          trend: listingChange >= 0 ? "up" : "down",
+          duration: "from past week",
+        },
+        activeUsers: {
+          value: activeUsers,
+          change: userChange.toFixed(1),
+          trend: userChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+        totalPending: {
+          value: totalPending,
+          change: pendingChange.toFixed(1),
+          trend: pendingChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Analytics Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 
 export const getLatestTransactions = async(req, res)=>{
     try {

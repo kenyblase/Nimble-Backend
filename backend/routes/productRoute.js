@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getParentCategories, getSubCategoriesAndParentCategoryProducts, getSubCategoryProducts, getParentCategory, getSubCategories } from '../controllers/productController.js';
+import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getParentCategories, getSubCategoriesAndParentCategoryProducts, getSubCategoryProducts, getParentCategory, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed } from '../controllers/productController.js';
 import { verifyToken } from '../middleware/verifyToken.js'
 
 const router = express.Router();
@@ -29,5 +29,13 @@ router.get('/category/:parentCategoryId', verifyToken, getSubCategoriesAndParent
 router.get('/subcategories/:subCategoryId', verifyToken, getSubCategoryProducts)
 
 router.get('/subcategories', verifyToken, getSubCategories)
+
+router.put('/view', viewProduct)
+
+router.get('/most-purchased', getMostPurchasedProducts)
+
+router.get('/most-viewed', getMostViewedProducts)
+
+router.get('/recently-viewed', verifyToken, getRecentlyViewed)
 
 export default router;

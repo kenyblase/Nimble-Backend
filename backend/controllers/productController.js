@@ -2,6 +2,7 @@ import cloudinary from '../utils/cloudinary.js'
 import Product from '../models/productModel.js';
 import ParentCategory from '../models/parentCategoryModel.js';
 import subCategory from '../models/subCategoryModel.js';
+import User from '../models/userModel.js';
 
 export const createProduct = async (req, res) => {
     const { name, description, price, gender, colours, bulkPrices, videoLink, location, condition, deliveryTimelines, shippingAddress, shippingOption, isShippedFromAbroad, category, sizes, images, isNegotiable } = req.body;
@@ -364,4 +365,61 @@ try {
     res.status(500).json({ message: 'Internal Server Error' });
 }
 };
-  
+
+export const viewProduct = async (req, res) => {
+  try {
+    const { productId } = req.params
+
+    const product = await Product.findByIdAndUpdate(
+      productId,
+      { $inc: { views: 1 } },
+      { new: true }
+    )
+
+    if (!product) return res.status(404).json({ success: false, message: "Product not found" })
+
+    // Optionally store recent view for the user
+    if (req.userId) {
+      await User.findByIdAndUpdate(req.userId, {
+        $push: {
+          recentlyViewed: {
+            $each: [productId],
+            $position: 0,
+            $slice: 10  // keep only the 10 most recent
+          }
+        }
+      })
+    }
+
+    res.status(200).json({ success: true, product })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+export const getMostPurchasedProducts = async (req, res) => {
+  try {
+    const products = await Product.find().sort({ purchases: -1 }).limit(10)
+    res.status(200).json({ success: true, products })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+export const getMostViewedProducts = async (req, res) => {
+  try {
+    const products = await Product.find().sort({ views: -1 }).limit(10)
+    res.status(200).json({ success: true, products })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+export const getRecentlyViewed = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate('recentlyViewed')
+    res.status(200).json({ success: true, products: user.recentlyViewed })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}

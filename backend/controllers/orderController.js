@@ -406,6 +406,10 @@ export const updateTransactionStatus = async (req, res) => {
             vendor.balance += order.totalAmount
 
             await vendor.save()
+
+            await Product.findByIdAndUpdate(order.product, {
+            $inc: { purchases: order.quantity }
+            })
         }
 
         if(vendor.AppNotificationSettings.includes('ORDERS')){

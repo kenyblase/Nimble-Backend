@@ -97,9 +97,9 @@ const userSchema = new mongoose.Schema({
         type:[String],
         default: []
     },
-    isBlocked:{
-        type: Boolean,
-        default: false
+    status:{
+        type: String,
+        default: 'active'
     },
     deliveryAddress: [{
         name: {
@@ -122,6 +122,7 @@ const userSchema = new mongoose.Schema({
             default: false
         }
     }],
+    recentlyViewed: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
     resetPasswordToken:String,
     resetPasswordExpiresAt:Date,
     VerificationToken: String,
