@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getParentCategories, getSubCategoriesAndParentCategoryProducts, getSubCategoryProducts, getParentCategory, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed } from '../controllers/productController.js';
+import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getParentCategories, getSubCategoriesAndParentCategoryProducts, getSubCategoryProducts, getParentCategory, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed, getTrendingProductsByParentCategory } from '../controllers/productController.js';
 import { verifyToken } from '../middleware/verifyToken.js'
 
 const router = express.Router();
@@ -37,5 +37,7 @@ router.get('/most-purchased', getMostPurchasedProducts)
 router.get('/most-viewed', getMostViewedProducts)
 
 router.get('/recently-viewed', verifyToken, getRecentlyViewed)
+
+router.get("/trending/:parentCategoryId", getTrendingProductsByParentCategory);
 
 export default router;

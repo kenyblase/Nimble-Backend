@@ -423,3 +423,48 @@ export const getRecentlyViewed = async (req, res) => {
     res.status(500).json({ success: false, message: error.message })
   }
 }
+
+export const getTrendingProductsByParentCategory = async (req, res) => {
+  try {
+    const { parentCategoryId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    // Find all subcategories under the parent category
+    const subCategories = await subCategory.find({ parentCategory: parentCategoryId });
+
+    if (subCategories.length === 0) {
+      return res.status(404).json({ message: 'No subcategories found for this parent category' });
+    }
+
+    const subCategoryIds = subCategories.map(sub => sub._id);
+
+    // Find products in those subcategories and sort by views (descending)
+    const [products, totalProducts] = await Promise.all([
+      Product.find({ category: { $in: subCategoryIds }, status: 'active' })
+        .sort({ views: -1 }) // 👈 Trending logic (most viewed first)
+        .skip(skip)
+        .limit(limit),
+      Product.countDocuments({ category: { $in: subCategoryIds }, status: 'active' }),
+    ]);
+
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    res.status(200).json({
+      success: true,
+      message: "Trending products fetched successfully",
+      subCategories,
+      products,
+      pagination: {
+        totalProducts,
+        totalPages,
+        currentPage: page,
+        pageSize: limit,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching trending products:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
