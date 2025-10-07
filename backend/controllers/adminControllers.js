@@ -130,48 +130,38 @@ export const getDashboardAnalytics = async (req, res) => {
 };
 
 
-export const getLatestTransactions = async(req, res)=>{
-    try {
-        const transactions = await Transaction.find().populate('user', 'firstName lastName')
+export const getLatestTransactions = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 4;
 
-        const orders = await Order.find({transactionStatus: 'completed'}).populate('vendor', 'firstName lastName').populate('user', 'firstName lastName');
+    const skip = (page - 1) * limit;
 
-        const formattedTransactions = transactions.map(txn => ({
-            type: txn.type,
-            id: txn._id.toString(),
-            seller:`${txn.user.firstName} ${txn.user.lastName}`,
-            buyer: 'N/A',
-            date: new Date(txn.createdAt),
-            amount: `#${txn.amount.toLocaleString()}`,
-            status: txn.status,
-            action: ':',
-            user:`${txn.user.firstName} ${txn.user.lastName}`
-        }))
+    const total = await Transaction.countDocuments();
 
-        const formattedOrders = orders.map(order => ({
-            type: 'Sales',
-            id: order._id.toString(),
-            seller:`${order.vendor.firstName} ${order.vendor.lastName}`,
-            buyer:`${order.user.firstName} ${order.user.lastName}`,
-            date: new Date(order.createdAt),
-            amount: `#${order.totalAmount.toLocaleString()}`,
-            status: order.transactionStatus,
-            action: ':',
-            user: 'N/A'
-        }))
+    const transactions = await Transaction.find()
+      .populate('user', 'firstName lastName')
+      .sort({ createdAt: -1 }) 
+      .skip(skip)
+      .limit(limit);
 
-        const sortedData = [...formattedTransactions, ...formattedOrders].sort((a,b)=>b.date - a.date)
-
-        const finalData = sortedData.map(item => ({
-            ...item,
-            date: item.date.toLocaleDateString('en-GB')
-        }));
-
-        res.status(200).json({message: 'Transactions Fetched Successfully', data: finalData})
-    } catch (error) {
-        res.status(500).json({message: "Internal Server Error"})
-    }
-}
+    res.status(200).json({
+      message: 'Transactions Fetched Successfully',
+      data: transactions,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page * limit < total,
+        hasPrevPage: page > 1
+      }
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
 
 export const getListingAnalytics = async(req, res)=>{
     try {

@@ -410,6 +410,15 @@ export const updateTransactionStatus = async (req, res) => {
             await Product.findByIdAndUpdate(order.product, {
             $inc: { purchases: order.quantity }
             })
+
+            await Transaction.create({
+                user: order.user,
+                type: "sales",
+                amount: order.totalAmount,
+                reference,
+                buyer: order.buyer,
+                status: "successful"
+            });
         }
 
         if(vendor.AppNotificationSettings.includes('ORDERS')){

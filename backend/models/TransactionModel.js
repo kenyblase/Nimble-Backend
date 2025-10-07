@@ -7,6 +7,10 @@ const transactionSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    buyer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
     type: {
       type: String,
       enum: ["deposit", "withdrawal", 'payment'],
