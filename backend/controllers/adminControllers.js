@@ -45,7 +45,7 @@ export const getDashboardAnalytics = async (req, res) => {
     const [totalCompletedOrders, activeListings, activeUsers, totalPending] =
       await Promise.all([
         Order.find({ transactionStatus: "completed" }),
-        Product.find({ status: "active" }),
+        Product.countDocuments({ status: "active" }),
         User.countDocuments({status: 'active'}),
         Product.countDocuments({ status: "pending" }),
       ]);
@@ -55,12 +55,7 @@ export const getDashboardAnalytics = async (req, res) => {
       0
     );
 
-    const totalActiveListings = activeListings.reduce(
-      (sum, listing) => sum + (listing.price || 0),
-      0
-    );
-
-    const [yesterdayOrders, lastWeekListings, yesterdayUsers, yesterdayPending] =
+    const [yesterdayOrders, lastWeekActiveListings, yesterdayUsers, yesterdayPending] =
       await Promise.all([
 
         Order.find({
@@ -68,7 +63,7 @@ export const getDashboardAnalytics = async (req, res) => {
           createdAt: { $gte: yesterday, $lt: today },
         }),
 
-        Product.find({
+        Product.countDocuments({
           status: "active",
           createdAt: { $gte: lastWeek, $lt: today },
         }),
@@ -89,18 +84,13 @@ export const getDashboardAnalytics = async (req, res) => {
       0
     );
 
-    const lastWeekListingTotal = lastWeekListings.reduce(
-      (sum, listing) => sum + (listing.price || 0),
-      0
-    );
-
     const calcChange = (current, prev) => {
       if (!prev || prev === 0) return 0;
       return ((current - prev) / prev) * 100;
     };
 
     const salesChange = calcChange(totalSales, yesterdaySales);
-    const listingChange = calcChange(totalActiveListings, lastWeekListingTotal);
+    const listingChange = calcChange(activeListings, lastWeekActiveListings);
     const userChange = calcChange(activeUsers, yesterdayUsers);
     const pendingChange = calcChange(totalPending, yesterdayPending);
 
@@ -114,7 +104,7 @@ export const getDashboardAnalytics = async (req, res) => {
           duration: "from yesterday",
         },
         activeListings: {
-          value: totalActiveListings,
+          value: activeListings,
           change: listingChange.toFixed(1),
           trend: listingChange >= 0 ? "up" : "down",
           duration: "from past week",
