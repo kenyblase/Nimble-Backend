@@ -10,6 +10,7 @@ import bcryptjs from 'bcryptjs'
 import {generateTokenAndSetCookie} from '../utils/generateTokenAndSetCookie.js'
 import cloudinary from '../utils/cloudinary.js'
 import axios from 'axios'
+import Category from "../models/categoryModel.js"
 
 export const adminLogIn = async (req, res) => {
     const {email, password} = req.body
@@ -623,6 +624,45 @@ export const createSubCategory = async (req, res)=>{
     } catch (error) {
         console.error(error.message);
         return res.status(500).json({ message: "failed to create subCategory", error: error.message });
+    }
+}
+
+export const createCategory = async (req, res)=>{
+    try {
+       const {name, commissionPercentage, parentCategory, tags, attributes} = req.body
+
+        const exists = await Category.findOne({
+            name: { $regex: new RegExp(`^${name}$`, "i") },
+        });
+
+        if (exists) {
+            return res.status(400).json({ message: `Category "${name}" already exists` });
+        }
+
+       const parsedTags = tags ? JSON.parse(tags) : [];
+       const parsedAttributes = attributes ? JSON.parse(attributes) : [];
+       const commission = Number(commissionPercentage)
+
+       if (!req.file) return res.status(400).json({message: 'Image is required'})
+      const uploadRes = await cloudinary.uploader.upload(req.file.path, {
+        folder: "categories", // optional: keeps uploads organized in a folder
+        resource_type: "image",
+      });
+       const image = uploadRes.secure_url;
+
+        const category = await Category.create({
+            name, 
+            commissionPercentage: commission, 
+            parentCategory, 
+            image, 
+            tags: parsedTags, 
+            attributes: parsedAttributes
+        })
+
+       res.status(200).json(category)
+    } catch (error) {
+        console.error(error.message);
+        return res.status(500).json({ message: "failed to create category", error: error.message });
     }
 }
 

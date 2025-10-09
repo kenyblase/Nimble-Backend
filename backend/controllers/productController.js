@@ -1,6 +1,7 @@
 import cloudinary from '../utils/cloudinary.js'
 import Product from '../models/productModel.js';
 import ParentCategory from '../models/parentCategoryModel.js';
+import Category from '../models/categoryModel.js';
 import subCategory from '../models/subCategoryModel.js';
 import User from '../models/userModel.js';
 
@@ -264,6 +265,16 @@ export const getSubCategories = async(req, res)=>{
     }
 }
 
+export const getCategories = async(req, res)=>{
+    try {
+        const categories = await Category.find()
+
+        res.status(200).json(categories)
+    } catch (error) {
+        res.status(500).json({message: 'Internal Server Error'})
+    }
+}
+
 export const getParentCategories = async(req, res)=>{
     try {
     //     const categories = [
@@ -426,27 +437,20 @@ export const getRecentlyViewed = async (req, res) => {
 
 export const getTrendingProductsByParentCategory = async (req, res) => {
   try {
-    const { parentCategoryId } = req.params;
+    const { categoryId } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Find all subcategories under the parent category
-    const subCategories = await subCategory.find({ parentCategory: parentCategoryId });
-
-    if (subCategories.length === 0) {
-      return res.status(404).json({ message: 'No subcategories found for this parent category' });
-    }
-
-    const subCategoryIds = subCategories.map(sub => sub._id);
+    const categories = await Category.find({parentCategory: categoryId})
 
     // Find products in those subcategories and sort by views (descending)
     const [products, totalProducts] = await Promise.all([
-      Product.find({ category: { $in: subCategoryIds }, status: 'active' })
+      Product.find({ category: categoryId, status: 'active' })
         .sort({ views: -1 }) // 👈 Trending logic (most viewed first)
         .skip(skip)
         .limit(limit),
-      Product.countDocuments({ category: { $in: subCategoryIds }, status: 'active' }),
+      Product.countDocuments({ category: categoryId, status: 'active' }),
     ]);
 
     const totalPages = Math.ceil(totalProducts / limit);
@@ -454,7 +458,7 @@ export const getTrendingProductsByParentCategory = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Trending products fetched successfully",
-      subCategories,
+      categories,
       products,
       pagination: {
         totalProducts,

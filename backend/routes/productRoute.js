@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getParentCategories, getSubCategoriesAndParentCategoryProducts, getSubCategoryProducts, getParentCategory, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed, getTrendingProductsByParentCategory } from '../controllers/productController.js';
+import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getParentCategories, getSubCategoriesAndParentCategoryProducts, getSubCategoryProducts, getParentCategory, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed, getTrendingProductsByParentCategory, getCategories } from '../controllers/productController.js';
 import { verifyToken } from '../middleware/verifyToken.js'
 
 const router = express.Router();
@@ -20,7 +20,7 @@ router.post('/:id/reviews', verifyToken, addReview)
 
 router.get('/:id/reviews', verifyToken, getProductReviews)
 
-router.get('/categories', verifyToken, getParentCategories)
+router.get('/categories', getCategories)
 
 router.get('/categories/:id', verifyToken, getParentCategory)
 
@@ -38,6 +38,6 @@ router.get('/most-viewed', getMostViewedProducts)
 
 router.get('/recently-viewed', verifyToken, getRecentlyViewed)
 
-router.get("/trending/:parentCategoryId", getTrendingProductsByParentCategory);
+router.get("/trending/:categoryId", getTrendingProductsByParentCategory);
 
 export default router;
