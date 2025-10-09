@@ -11,6 +11,7 @@ import {generateTokenAndSetCookie} from '../utils/generateTokenAndSetCookie.js'
 import cloudinary from '../utils/cloudinary.js'
 import axios from 'axios'
 import Category from "../models/categoryModel.js"
+import fs from "fs";
 
 export const adminLogIn = async (req, res) => {
     const {email, password} = req.body
@@ -649,6 +650,10 @@ export const createCategory = async (req, res)=>{
         resource_type: "image",
       });
        const image = uploadRes.secure_url;
+
+        fs.unlink(req.file.path, (err) => {
+            if (err) console.error("Error deleting temp file:", err);
+        });
 
         const category = await Category.create({
             name, 
