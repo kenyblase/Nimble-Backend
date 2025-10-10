@@ -566,65 +566,19 @@ export const rejectWithdrawal = async (req, res) => {
     }
 }
 
-export const getSubCategories = async (req, res)=>{
-    try {
-        const subCategories = await Subcategory.find().populate('parentCategory', 'name')
-
-        const formattedSubCategories = await Promise.all(subCategories.map(async (cat) => ({
-            id: cat._id,
-            category: cat.name, 
-            parentCategory: cat.parentCategory.name, 
-            commission: `${cat.commissionPercentage}%`, 
-            listedItems: await Product.countDocuments({category: cat._id}),
-            action: ':'
-        })))
-        
-        res.status(200).json(formattedSubCategories)
-    } catch (error) {
-        console.error(error.message);
-        return res.status(500).json({ message: "failed to fetch subCategories", error: error.message });
-    }
-}
-
-export const getSubCategoryById = async (req, res)=>{
+export const getCategoryById = async (req, res)=>{
     try {
         const {id} = req.params
-        const subCategory = await Subcategory.findById(id)
+        const category = await Category.findById(id)
 
         const products = await Product.find({category: id}).populate('vendor', 'firstName lastName')
         
         res.status(200).json({
-            subCategory, products
+            category, products
         })
     } catch (error) {
         console.error(error.message);
-        return res.status(500).json({ message: "failed to fetch subCategory", error: error.message });
-    }
-}
-
-export const createParentCategory = async (req, res)=>{
-    try {
-       const {name} = req.body
-
-       const parentCategory = await ParentCategory.create({name})
-
-       res.status(200).json(parentCategory)
-    } catch (error) {
-        console.error(error.message);
-        return res.status(500).json({ message: "failed to create parentCategory", error: error.message });
-    }
-}
-
-export const createSubCategory = async (req, res)=>{
-    try {
-       const {name, commissionPercentage, parentCategory} = req.body
-
-       const subCategory = await Subcategory.create({name, commissionPercentage, parentCategory})
-
-       res.status(200).json(subCategory)
-    } catch (error) {
-        console.error(error.message);
-        return res.status(500).json({ message: "failed to create subCategory", error: error.message });
+        return res.status(500).json({ message: "failed to fetch category", error: error.message });
     }
 }
 
@@ -671,13 +625,56 @@ export const createCategory = async (req, res)=>{
     }
 }
 
-export const getParentCategories = async (req, res)=>{
+export const getAllCategories = async(req, res)=>{
     try {
-       const parentCategories = await ParentCategory.find()
+        const categories = await Category.find()
+        .collation({ locale: "en", strength: 2 })
+        .sort({ name: 1 });
 
-       res.status(200).json(parentCategories)
+        res.status(200).json(categories)
     } catch (error) {
-        console.error(error.message);
-        return res.status(500).json({ message: "failed to create subCategory", error: error.message });
+        res.status(500).json({message: 'Internal Server Error'})
     }
 }
+
+export const getCategoriesWithProductCount = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+
+    const query = search
+      ? { name: { $regex: search, $options: "i" } }
+      : {};
+
+    // Count total matching categories
+    const totalCategories = await Category.countDocuments(query);
+
+    // Fetch categories (sorted, paginated, and populated)
+    const categories = await Category.find(query)
+      .populate("parentCategory", "name") // <-- populate only the 'name'
+      .collation({ locale: "en", strength: 2 })
+      .sort({ name: 1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    // Get product counts
+    const categoriesWithCount = await Promise.all(
+      categories.map(async (category) => {
+        const productCount = await Product.countDocuments({ category: category._id });
+        return {
+          ...category.toObject(),
+          listedItems: productCount,
+        };
+      })
+    );
+
+    res.status(200).json({
+      categories: categoriesWithCount,
+      currentPage: Number(page),
+      totalPages: Math.ceil(totalCategories / limit),
+      totalCategories,
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};

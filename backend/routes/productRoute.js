@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getParentCategories, getSubCategoriesAndParentCategoryProducts, getSubCategoryProducts, getParentCategory, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed, getTrendingProductsByParentCategory, getCategories } from '../controllers/productController.js';
+import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getSubCategoriesAndParentCategoryProducts, getSubCategoryProducts, getParentCategory, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed, getTrendingProductsByParentCategory } from '../controllers/productController.js';
 import { verifyToken } from '../middleware/verifyToken.js'
 
 const router = express.Router();
@@ -19,8 +19,6 @@ router.delete('/delete-product/:productId', verifyToken, deleteProduct);
 router.post('/:id/reviews', verifyToken, addReview)
 
 router.get('/:id/reviews', verifyToken, getProductReviews)
-
-router.get('/categories', getCategories)
 
 router.get('/categories/:id', verifyToken, getParentCategory)
 

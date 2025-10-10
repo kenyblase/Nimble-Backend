@@ -11,7 +11,7 @@ const categorySchema = new mongoose.Schema({
     },
     parentCategory: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'ParentCategory',
+        ref: 'Category',
         default: null
     },
     commissionPercentage: {
@@ -25,6 +25,11 @@ const categorySchema = new mongoose.Schema({
         values: [String],
     }]
 }, {timestamps: true});
+
+categorySchema.index(
+  { name: 1 },
+  { unique: true, collation: { locale: "en", strength: 2 } }
+);
 
 const Category = mongoose.model('Category', categorySchema);
 
