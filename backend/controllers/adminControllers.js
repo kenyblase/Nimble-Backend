@@ -1,17 +1,16 @@
+import axios from 'axios'
+import fs from "fs";
+import bcryptjs from 'bcryptjs'
+import mongoose from 'mongoose';
 import User from "../models/userModel.js"
 import Admin from "../models/adminModel.js"
 import Order from "../models/orderModel.js"
 import Transaction from "../models/TransactionModel.js"
 import Product from "../models/productModel.js"
 import Withdrawal from "../models/withdrawalModel.js"
-import Subcategory from "../models/subCategoryModel.js"
-import ParentCategory from "../models/parentCategoryModel.js"
-import bcryptjs from 'bcryptjs'
 import {generateTokenAndSetCookie} from '../utils/generateTokenAndSetCookie.js'
 import cloudinary from '../utils/cloudinary.js'
-import axios from 'axios'
 import Category from "../models/categoryModel.js"
-import fs from "fs";
 
 export const adminLogIn = async (req, res) => {
     const {email, password} = req.body
@@ -130,7 +129,6 @@ export const getDashboardAnalytics = async (req, res) => {
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
 
 export const getLatestTransactions = async (req, res) => {
   try {
@@ -676,5 +674,224 @@ export const getCategoriesWithProductCount = async (req, res) => {
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const getTotalCommissionAnalytics = async (req, res) => {
+  try {
+    const { filter = "today" } = req.query;
+
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (filter) {
+      case "yesterday":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+
+      case "thisWeek":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now);
+        break;
+
+      case "thisMonth":
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now);
+        break;
+
+      default: // today
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
+    }
+
+    // --- Aggregation to compute total commission across all categories ---
+    const pipeline = [
+      {
+        $match: {
+          status: "completed",
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "product",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "product.category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: "$category" },
+      {
+        $project: {
+          commission: {
+            $divide: [
+              { $multiply: ["$amount", "$category.commissionPercentage"] },
+              100,
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalCommission: { $sum: "$commission" },
+        },
+      },
+    ];
+
+    const result = await Order.aggregate(pipeline);
+    const totalCommission = result[0]?.totalCommission || 0;
+
+    res.status(200).json({
+      totalCommission: Number(totalCommission.toFixed(2)),
+      filter,
+      startDate,
+      endDate,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Failed to calculate total commission analytics",
+      error: error.message,
+    });
+  }
+};
+
+export const getCategoryCommissionAnalytics = async (req, res) => {
+  try {
+    const { categoryId, filter = "today" } = req.query;
+
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (filter) {
+      case "yesterday":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+
+      case "thisWeek":
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay());
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now);
+        break;
+
+      case "thisMonth":
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now);
+        break;
+
+      default:
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
+    }
+
+    // If no categoryId, return 0 commission with null name/id
+    if (!categoryId) {
+      return res.status(200).json({
+        categoryCommission: 0,
+        categoryId: null,
+        categoryName: null,
+        filter,
+        startDate,
+        endDate,
+      });
+    }
+
+    // --- Get category name ---
+    const category = await Category.findById(categoryId).select("name");
+    if (!category) {
+      return res.status(400).json({message: 'Category not found'});
+    }
+
+    // --- Aggregation to compute commission for a specific category ---
+    const pipeline = [
+      {
+        $match: {
+          status: "completed",
+          createdAt: { $gte: startDate, $lte: endDate },
+        },
+      },
+      {
+        $lookup: {
+          from: "products",
+          localField: "product",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: "$product" },
+      {
+        $match: {
+          "product.category": { $eq: new mongoose.Types.ObjectId(categoryId) },
+        },
+      },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "product.category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: "$category" },
+      {
+        $project: {
+          commission: {
+            $divide: [
+              { $multiply: ["$amount", "$category.commissionPercentage"] },
+              100,
+            ],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          categoryCommission: { $sum: "$commission" },
+        },
+      },
+    ];
+
+    const result = await Order.aggregate(pipeline);
+    const categoryCommission = result[0]?.categoryCommission || 0;
+
+    res.status(200).json({
+      categoryCommission: Number(categoryCommission.toFixed(2)),
+      categoryId,
+      categoryName: category.name,
+      filter,
+      startDate,
+      endDate,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Failed to calculate category commission analytics",
+      error: error.message,
+    });
   }
 };
