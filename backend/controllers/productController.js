@@ -255,44 +255,35 @@ export const getProductReviews = async(req, res)=>{
     }
 }
 
-export const getSubCategories = async(req, res)=>{
-    try {
-        const subCategories = await subCategory.find()
-
-        res.status(200).json(subCategories)
-    } catch (error) {
-        res.status(500).json({message: 'Internal Server Error'})
-    }
-}
-
 export const getParentCategories = async(req, res)=>{
     try {
-    //     const categories = [
-	// 	{ name: "Laptops", image: "/cream.png", parentCategory:'67fabc6d8372b786cfc0b6b0' },
-	// 	{ name: "Phones", image: "/cream.png", parentCategory:'67fabc6d8372b786cfc0b6b0' },
-	// 	{ name: "Tablets", image: "/cream.png", parentCategory:'67fabc6d8372b786cfc0b6b0' },
-	// 	{ name: "Televisions", image: "/cream.png", parentCategory:'67fabc6d8372b786cfc0b6b0' },
-	// 	{ name: "Computers", image: "/cream.png", parentCategory:'67fabc6d8372b786cfc0b6b0' },
-	// ].forEach(async(category)=>{
-    //     await subCategory.create(category)
-    //     console.log('category added successfully')
-    // })
-        const parentCategories = await ParentCategory.find()
+        const categories = await Category.find({isActive: true, parentCategory: null})
 
-        res.status(200).json(parentCategories)
+        res.status(200).json(categories)
     } catch (error) {
         res.status(500).json({message: 'Internal Server Error'})
     }
 }
 
-export const getParentCategory = async(req, res)=>{
+export const getSubCategories = async(req, res)=>{
+  try {
+        const { id } = req.params;
+        const categories = await Category.find({isActive: true, parentCategory: id})
+
+        res.status(200).json(categories)
+    } catch (error) {
+        res.status(500).json({message: 'Internal Server Error'})
+    }
+}
+
+export const getCategory = async(req, res)=>{
     try {
         const {id} = req.params
-        const parentCategory = await ParentCategory.findById(id)
+        const category = await Category.findOne({id, isActive: true})
 
-        if(!parentCategory)return res.status(400).json({message: 'Parent Category not found'})
+        if(!category)return res.status(400).json({message: 'Category not found'})
 
-        res.status(200).json(parentCategory)
+        res.status(200).json(category)
     } catch (error) {
         res.status(500).json({message: 'Internal Server Error'})
     }
@@ -300,24 +291,18 @@ export const getParentCategory = async(req, res)=>{
 
 export const getSubCategoriesAndParentCategoryProducts = async (req, res) => {
     try {
-      const { parentCategoryId } = req.params;
+      const { id } = req.params;
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 10;
       const skip = (page - 1) * limit;
   
-      const subCategories = await subCategory.find({ parentCategory: parentCategoryId });
-  
-      if (subCategories.length === 0) {
-        return res.status(404).json({ message: 'No subcategory found for this parentCategory' });
-      }
-  
-      const subCategoryIds = subCategories.map(sub => sub._id);
+      const subCategories = await Category.find({ parentCategory: id, isActive: true });
   
       const [products, totalProducts] = await Promise.all([
-        Product.find({ category: { $in: subCategoryIds }, status: 'active' })
+        Product.find({ category: id, status: 'active' })
           .skip(skip)
           .limit(limit),
-        Product.countDocuments({ category: { $in: subCategoryIds } })
+        Product.countDocuments({ category: id, status: 'active' })
       ]);
   
       const totalPages = Math.ceil(totalProducts / limit);
@@ -337,18 +322,18 @@ export const getSubCategoriesAndParentCategoryProducts = async (req, res) => {
     }
 };
   
-export const getSubCategoryProducts = async (req, res) => {
-const { subCategoryId } = req.params;
+export const getCategoryProducts = async (req, res) => {
+const { id } = req.params;
 const page = parseInt(req.query.page) || 1;
 const limit = parseInt(req.query.limit) || 10;
 const skip = (page - 1) * limit;
 
 try {
     const [products, totalProducts] = await Promise.all([
-    Product.find({ category: subCategoryId, status: 'active' })
+    Product.find({ category: id, status: 'active' })
         .skip(skip)
         .limit(limit),
-    Product.countDocuments({ category: subCategoryId })
+    Product.countDocuments({ category: id, status: 'active' })
     ]);
 
     const totalPages = Math.ceil(totalProducts / limit);

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getSubCategoriesAndParentCategoryProducts, getSubCategoryProducts, getParentCategory, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed, getTrendingProductsByParentCategory } from '../controllers/productController.js';
+import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getSubCategoriesAndParentCategoryProducts, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed, getTrendingProductsByParentCategory, getCategoryProducts, getCategory, getParentCategories } from '../controllers/productController.js';
 import { verifyToken } from '../middleware/verifyToken.js'
 
 const router = express.Router();
@@ -20,13 +20,15 @@ router.post('/:id/reviews', verifyToken, addReview)
 
 router.get('/:id/reviews', verifyToken, getProductReviews)
 
-router.get('/categories/:id', verifyToken, getParentCategory)
+router.get('/categories', getParentCategories)
 
-router.get('/category/:parentCategoryId', verifyToken, getSubCategoriesAndParentCategoryProducts)
+router.get('/categories/:id', getCategory)
 
-router.get('/subcategories/:subCategoryId', verifyToken, getSubCategoryProducts)
+router.get('/category/sub/:id', verifyToken, getSubCategoriesAndParentCategoryProducts)
 
-router.get('/subcategories', verifyToken, getSubCategories)
+router.get('/category/products/:id', verifyToken, getCategoryProducts)
+
+router.get('/subcategories/:id', verifyToken, getSubCategories)
 
 router.put('/view', viewProduct)
 
