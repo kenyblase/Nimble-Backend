@@ -567,7 +567,9 @@ export const rejectWithdrawal = async (req, res) => {
 export const getCategoryById = async (req, res)=>{
     try {
         const {id} = req.params
-        const category = await Category.findById(id)
+        const category = await Category.findById(id).populate('parentCategory', 'name')
+
+        if(!category) return res.status(404).json({message: 'Category not found'})
 
         const products = await Product.find({category: id}).populate('vendor', 'firstName lastName')
         
@@ -579,6 +581,33 @@ export const getCategoryById = async (req, res)=>{
         return res.status(500).json({ message: "failed to fetch category", error: error.message });
     }
 }
+
+export const toggleCategoryActiveStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const category = await Category.findById(id);
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    category.isActive = !category.isActive;
+    await category.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Category has been ${category.isActive ? "activated" : "deactivated"}.`,
+      data: category,
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to toggle category active status",
+      error: error.message,
+    });
+  }
+};
 
 export const createCategory = async (req, res)=>{
     try {
