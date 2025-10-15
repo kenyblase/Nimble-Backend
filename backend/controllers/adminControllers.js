@@ -571,10 +571,10 @@ export const getCategoryById = async (req, res)=>{
 
         if(!category) return res.status(404).json({message: 'Category not found'})
 
-        const products = await Product.find({category: id}).populate('vendor', 'firstName lastName')
+        const totalProducts = await Product.countDocuments({category: id})
         
         res.status(200).json({
-            category, products
+          category, totalProducts
         })
     } catch (error) {
         console.error(error.message);
