@@ -652,6 +652,70 @@ export const createCategory = async (req, res)=>{
     }
 }
 
+export const updateCategory = async (req, res)=>{
+    try {
+      const {id} = req.params
+       const {name, commissionPercentage, parentCategory, tags, attributes} = req.body
+
+        const category = await Category.findById(id)
+
+        if (!category) {
+            return res.status(400).json({ message: `Category Not Found` });
+        }
+
+       const parsedTags = tags ? JSON.parse(tags) : [];
+       const parsedAttributes = attributes ? JSON.parse(attributes) : [];
+       const commission = Number(commissionPercentage)
+
+       let image = null
+
+       if (req.file){
+         const uploadRes = await cloudinary.uploader.upload(req.file.path, {
+           folder: "categories", // optional: keeps uploads organized in a folder
+           resource_type: "image",
+         });
+          image = uploadRes.secure_url;
+   
+           fs.unlink(req.file.path, (err) => {
+               if (err) console.error("Error deleting temp file:", err);
+           });
+       }
+
+       const updatedCategory = await Category.findByIdAndUpdate(id, {
+        parentCategory,
+        name,
+        commissionPercentage: commission,
+        tags: parsedTags,
+        attributes: parsedAttributes,
+        image: image ? image : category.image
+       }, {new: true})
+
+       res.status(200).json(updatedCategory)
+    } catch (error) {
+        console.error(error.message);
+        return res.status(500).json({ message: "failed to update category", error: error.message });
+    }
+}
+
+export const deleteCategory = async (req, res)=>{
+    try {
+      const {id} = req.params
+
+      const productExists = await Product.findOne({category: id})
+
+      if(productExists) return res.status(200).json({message: 'Unable to delete category with listed products'})
+
+      await Category.updateMany({parentCategory: id}, {parentCategory: null})
+
+      await Category.findByIdAndDelete(id)
+       
+      res.status(200).json({message: 'Category Deleted Successfully'})
+    } catch (error) {
+        console.error(error.message);
+        return res.status(500).json({ message: "failed to update category", error: error.message });
+    }
+}
+
 export const getAllCategories = async(req, res)=>{
     try {
         const categories = await Category.find()

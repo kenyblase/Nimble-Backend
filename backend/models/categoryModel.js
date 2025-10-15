@@ -19,7 +19,7 @@ const categorySchema = new mongoose.Schema({
         min: 1
     },
     tags: {type: [String], default: []},
-    isActive: {type: Boolean, default: true},
+    isActive: {type: Boolean, default: false},
     attributes: [{
         name: String,
         values: [String],

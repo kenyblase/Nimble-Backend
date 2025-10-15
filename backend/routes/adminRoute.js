@@ -2,7 +2,7 @@ import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
 import upload from '../utils/multer.js'
-import { adminSignup, approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus } from "../controllers/adminControllers.js";
+import { adminSignup, approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory } from "../controllers/adminControllers.js";
 
 const router = Router()
 
@@ -42,7 +42,11 @@ router.post('/block', verifyToken, isAdmin, blockUser)
 
 router.post('/get-user', verifyToken, isAdmin, getUser)
 
-router.post('/create-category', verifyToken, isAdmin, upload.single("image"), createCategory)
+router.post('/categories/create', verifyToken, isAdmin, upload.single("image"), createCategory)
+
+router.put('/categories/:id/update', verifyToken, isAdmin, upload.single("image"), updateCategory)
+
+router.delete('/categories/:id/delete', verifyToken, isAdmin, deleteCategory)
 
 router.get('/categories', verifyToken, isAdmin, getAllCategories)
 
