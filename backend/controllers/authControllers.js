@@ -17,7 +17,9 @@ export const signUp = async (req, res) => {
             return res.status(400).json({success:false, message:'user already exists'})
         }
 
-        const hashedPassword = await bcryptjs.hash(password, 10)
+        const salt = await bcryptjs.genSalt(10)
+
+        const hashedPassword = await bcryptjs.hash(password, salt)
 
         const VerificationToken = generateVerificationCode()
 

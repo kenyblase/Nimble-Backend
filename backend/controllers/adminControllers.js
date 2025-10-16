@@ -12,6 +12,33 @@ import {generateTokenAndSetCookie} from '../utils/generateTokenAndSetCookie.js'
 import cloudinary from '../utils/cloudinary.js'
 import Category from "../models/categoryModel.js"
 
+export const createAdmin = async (req, res) => {
+    const {firstName, lastName, email, phone, password, role, permissions} = req.body
+    try {
+        const admin = await Admin.findOne({ email });
+        if (admin) return res.status(404).json({message: 'Admin already exists'})
+
+        const salt = await bcryptjs.genSalt(10)
+        
+        const hashedPassword = await bcryptjs.hash(password, salt)
+
+        await Admin.create({
+          firstName,
+          lastName, 
+          email,
+          password: hashedPassword,
+          phone,
+          role,
+          permissions
+        })
+
+        res.status(200).json({ message: 'Admin Created Successfully'})
+    } catch (error) {
+        console.log('Error Signing In',error)
+        res.status(400).json({success:false, message:error.message})
+    }
+}
+
 export const adminLogIn = async (req, res) => {
     const {email, password} = req.body
     try {
@@ -322,7 +349,7 @@ export const deleteAdmin = async(req, res)=>{
     try {
         const {id} = req.params
 
-        const admin = await User.findByIdAndDelete(id)
+        const admin = await Admin.findByIdAndDelete(id)
 
         if(!admin) return res.status(400).json({message: 'Admin Not Found'})
 
@@ -347,47 +374,6 @@ export const getTransactionAnalytics = async(req, res)=>{
         res.status(200).json({message: 'Transaction Analytics fetched successfully', data: {totalPayInAmount, totalPayOutAmount}})
     } catch (error) {
         res.status(500).json({message: 'Internal Server Error'})
-    }
-}
-
-export const adminSignup = async(req, res)=>{
-    const {email, password, firstName, lastName} = req.body
-    try {
-        if(!email || !password || !firstName || !lastName){
-            throw new Error('All Fields Are Required')
-        }
-
-        const userAlreadyExists = await User.findOne({email})
-        if(userAlreadyExists){
-            return res.status(400).json({success:false, message:'user already exists'})
-        }
-
-        const hashedPassword = await bcryptjs.hash(password, 10)
-
-        const user = new User({
-            email,
-            password: hashedPassword,
-            firstName,
-            lastName,
-            role: 'ADMIN',
-            isVerified: true
-        })
-
-        await user.save()
-
-        const token = generateTokenAndSetCookie(res, user._id)
-
-        res.status(201).json({
-            success: true,
-            message:'User Created Successfully',
-            user: {
-                ...user._doc,
-                password:undefined
-            },
-            token
-        })
-    } catch (error) {
-        res.status(400).json({success:false, message:error.message})
     }
 }
 
