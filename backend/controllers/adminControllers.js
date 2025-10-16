@@ -245,30 +245,70 @@ export const getUsers = async(req, res)=>{
     }
 }
 
-export const getAdmins = async(req, res)=>{
-    try {
-        const userId = req.userId
-        const admins = await User.find({role: 'ADMIN', _id:{$ne: userId}})
-        
-        res.status(200).json(admins)
-    } catch (error) {
-        res.status(500).json({message: 'Internal Server Error'})
-    }
-}
+export const getAdmins = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const search = req.query.search?.trim() || "";
+
+    const filter = {
+      _id: { $ne: userId },
+      ...(search && {
+        $or: [
+          { firstName: { $regex: search, $options: "i" } },
+          { lastName: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { role: { $regex: search, $options: "i" } },
+        ],
+      }),
+    };
+
+    const totalAdmins = await Admin.countDocuments(filter);
+
+    const admins = await Admin.find(filter)
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    const totalPages = Math.ceil(totalAdmins / limit);
+
+    res.status(200).json({
+      success: true,
+      data: admins,
+      pagination: {
+        totalAdmins,
+        totalPages,
+        currentPage: page,
+        limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching admins:", error);
+    res.status(500).json({ success: false, message: "Internal Server Error" });
+  }
+};
 
 export const editAdmin = async(req, res)=>{
     try {
-        const {firstName, lastName, email, phoneNumber, role} = req.body
+        const { id } = req.params
+        const {firstName, lastName, email, phone, role, permissions} = req.body
 
-        const admin = await User.findOne({email, role: 'ADMIN'})
+        const admin = await Admin.findById(id)
 
         if(!admin) return res.status(400).json({message: 'Admin Not Found'})
 
         admin.firstName = firstName || admin.firstName
         admin.lastName = lastName || admin.lastName
         admin.email = email || admin.email
-        admin.phoneNumber = phoneNumber || admin.phoneNumber
+        admin.phoneNumber = phone || admin.phone
         admin.role = role || admin.role
+        admin.permissions = permissions || admin.permissions
 
         await admin.save()
 

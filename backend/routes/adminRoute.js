@@ -26,9 +26,9 @@ router.get('/get-users', verifyToken, isAdmin, getUsers)
 
 router.get('/get-admins', verifyToken, isAdmin, getAdmins)
 
-router.post('/edit-admin', verifyToken, isAdmin, editAdmin)
+router.put('/:id/edit', verifyToken, isAdmin, editAdmin)
 
-router.delete('/delete-admin/:id', verifyToken, isAdmin, deleteAdmin)
+router.delete('/:id/delete', verifyToken, isAdmin, deleteAdmin)
 
 router.get('/get-withdrawals', verifyToken, isAdmin, getWithdrawals)
 
