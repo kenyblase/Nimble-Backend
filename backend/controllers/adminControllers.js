@@ -251,16 +251,113 @@ export const getLatestOrders = async(req, res)=>{
     }
 }
 
+export const getUserAnalytics = async (req, res) => {
+  try {
+    const today = new Date();
+
+    // Define date ranges
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const lastWeek = new Date(today);
+    lastWeek.setDate(today.getDate() - 7);
+
+    // Current counts
+    const [activeUsers, verifiedUsers, suspendedUsers, bannedUsers] = await Promise.all([
+      User.countDocuments({ status: "active" }),
+      User.countDocuments({ isVerified: true }),
+      User.countDocuments({ status: "suspended" }),
+      User.countDocuments({ status: "banned" }),
+    ]);
+
+    // Previous period counts
+    const [yesterdayActive, yesterdayVerified, lastWeekSuspended, lastWeekBanned] = await Promise.all([
+      // Yesterday - active users
+      User.countDocuments({
+        status: "active",
+        createdAt: { $gte: yesterday, $lt: today },
+      }),
+
+      // Yesterday - verified users
+      User.countDocuments({
+        isVerified: true,
+        createdAt: { $gte: yesterday, $lt: today },
+      }),
+
+      // Last week - suspended users
+      User.countDocuments({
+        status: "suspended",
+        createdAt: { $gte: lastWeek, $lt: today },
+      }),
+
+      // Last week - banned users
+      User.countDocuments({
+        status: "banned",
+        createdAt: { $gte: lastWeek, $lt: today },
+      }),
+    ]);
+
+    // Helper to calculate % change
+    const calcChange = (current, prev) => {
+      if (!prev || prev === 0) return 0;
+      return ((current - prev) / prev) * 100;
+    };
+
+    // Calculate changes
+    const activeChange = calcChange(activeUsers, yesterdayActive);
+    const verifiedChange = calcChange(verifiedUsers, yesterdayVerified);
+    const suspendedChange = calcChange(suspendedUsers, lastWeekSuspended);
+    const bannedChange = calcChange(bannedUsers, lastWeekBanned);
+
+    // Response
+    res.status(200).json({
+      message: "User analytics fetched successfully",
+      data: {
+        activeUsers: {
+          value: activeUsers,
+          change: activeChange.toFixed(1),
+          trend: activeChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+        verifiedUsers: {
+          value: verifiedUsers,
+          change: verifiedChange.toFixed(1),
+          trend: verifiedChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+        suspendedUsers: {
+          value: suspendedUsers,
+          change: suspendedChange.toFixed(1),
+          trend: suspendedChange >= 0 ? "up" : "down",
+          duration: "from past week",
+        },
+        bannedUsers: {
+          value: bannedUsers,
+          change: bannedChange.toFixed(1),
+          trend: bannedChange >= 0 ? "up" : "down",
+          duration: "from past week",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("User Analytics Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const getUsers = async (req, res) => {
   try {
     const { page = 1, limit = 10, search = "", filter = "" } = req.query;
 
     const query = {};
     if (search) {
-      query.firstName = { $regex: search, $options: "i" };
-      query.lastName = { $regex: search, $options: "i" };
-      query.email = { $regex: search, $options: "i" };
+      query.$or = [
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+      ];
     }
+
     if (filter) query.status = filter;
 
     const totalUsers = await User.countDocuments(query);

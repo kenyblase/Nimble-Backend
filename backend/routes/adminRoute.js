@@ -2,7 +2,7 @@ import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
 import upload from '../utils/multer.js'
-import {  approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin } from "../controllers/adminControllers.js";
+import {  approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics } from "../controllers/adminControllers.js";
 
 const router = Router()
 
@@ -10,17 +10,19 @@ router.post('/create', verifyToken, isAdmin, createAdmin)
 
 router.post('/login', adminLogIn)
 
-router.get('/get-analytics', verifyToken, isAdmin, getDashboardAnalytics)
+router.get('/analytics', verifyToken, isAdmin, getDashboardAnalytics)
 
-router.get('/get-transactions', verifyToken, isAdmin, getLatestTransactions)
+router.get('/transactions', verifyToken, isAdmin, getLatestTransactions)
 
-router.get('/get-listings', verifyToken, isAdmin, getListingAnalytics)
+router.get('/listings/analytics', verifyToken, isAdmin, getListingAnalytics)
 
-router.get('/get-orders', verifyToken, isAdmin, getOrderAnalytics)
+router.get('/orders', verifyToken, isAdmin, getOrderAnalytics)
 
-router.get('/get-latest-orders', verifyToken, isAdmin, getLatestOrders)
+router.get('/orders/latest', verifyToken, isAdmin, getLatestOrders)
 
-router.get('/get-transaction-analytics', verifyToken, isAdmin, getTransactionAnalytics)
+router.get('/transaction/analytics', verifyToken, isAdmin, getTransactionAnalytics)
+
+router.get('/users/analytics', verifyToken, isAdmin, getUserAnalytics)
 
 router.get('/users', verifyToken, isAdmin, getUsers)
 
