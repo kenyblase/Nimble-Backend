@@ -37,7 +37,7 @@ export const signUp = async (req, res) => {
 
         const token = generateTokenAndSetCookie(res, user._id)
 
-        sendVerificationEmail(user.email, VerificationToken)
+        sendVerificationEmail(user.email, `${user.firstName} ${user.lastName}`,VerificationToken)
 
         res.status(201).json({
             success: true,
@@ -216,7 +216,7 @@ export const forgotPassword = async (req, res) => {
 
         await user.save()
 
-        await sendPasswordResetEmail(user.email, resetToken)
+        await sendPasswordResetEmail(user.email, `${user.firstName} ${user.lastName}`, resetToken)
 
         res.status(200).json({success: true, message:'Password Reset Code Sent To Your Email'})
 
@@ -251,7 +251,7 @@ export const resetPassword = async (req, res)=> {
 
         await user.save()
 
-        sendResetSuccessEmail(user.email)
+        sendResetSuccessEmail(user.email, `${user.firstName} ${user.lastName}`)
 
         res.status(200).json({success: true, message: 'Password Reset Sucessful'})
     } catch (error) {

@@ -18,6 +18,14 @@ export const verifyToken = async(req, res, next)=>{
             return res.status(404).json({message: 'User not found'})
         }
 
+        if(user.status === 'suspended'){
+            return res.status(404).json({message: 'Your account has been suspended. Please contact admin'})
+        }
+
+        if(user.status === 'banned'){
+            return res.status(404).json({message: 'Your account has been banned. Please contact admin'})
+        }
+
         req.userId = decoded.userId
 
         if(decoded.isAdmin){

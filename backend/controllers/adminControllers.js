@@ -251,26 +251,43 @@ export const getLatestOrders = async(req, res)=>{
     }
 }
 
-export const getUsers = async(req, res)=>{
-    try {
-        const users = await User.find({role: {$ne: 'ADMIN'}})
+export const getUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "", filter = "" } = req.query;
 
-        const formattedUsers = await Promise.all(users.map(async (user) => ({
-            fullname: `${user.firstName} ${user.lastName}`,
-            userId: user._id,
-            email: user.email,
-            phone: user.phoneNumber,
-            verification: user.isVerified ? 'Verified' : 'Not Verified',
-            listing: await Product.countDocuments({ vendor: user._id }),
-            status: user.isVerified ? 'Completed' : 'Not Completed',
-            action: ':'
-        })))
-        
-        res.status(200).json(formattedUsers)
-    } catch (error) {
-        res.status(500).json({message: 'Internal Server Error'})
+    const query = {};
+    if (search) {
+      query.firstName = { $regex: search, $options: "i" };
+      query.lastName = { $regex: search, $options: "i" };
+      query.email = { $regex: search, $options: "i" };
     }
-}
+    if (filter) query.status = filter;
+
+    const totalUsers = await User.countDocuments(query);
+
+    const users = await User.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * Number(limit))
+      .limit(Number(limit));
+
+    const usersWithCount = await Promise.all(
+      users.map(async (user) => {
+        const productCount = await Product.countDocuments({ vendor: user._id });
+        return { ...user.toObject(), listedItems: productCount };
+      })
+    );
+
+    res.status(200).json({
+      users: usersWithCount,
+      currentPage: Number(page),
+      totalPages: Math.ceil(totalUsers / limit),
+      totalUsers,
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 
 export const getAdmins = async (req, res) => {
   try {

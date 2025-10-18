@@ -22,9 +22,9 @@ router.get('/get-latest-orders', verifyToken, isAdmin, getLatestOrders)
 
 router.get('/get-transaction-analytics', verifyToken, isAdmin, getTransactionAnalytics)
 
-router.get('/get-users', verifyToken, isAdmin, getUsers)
+router.get('/users', verifyToken, isAdmin, getUsers)
 
-router.get('/get-admins', verifyToken, isAdmin, getAdmins)
+router.get('/admins', verifyToken, isAdmin, getAdmins)
 
 router.put('/:id/edit', verifyToken, isAdmin, editAdmin)
 
