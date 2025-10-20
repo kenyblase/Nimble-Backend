@@ -1,44 +1,75 @@
-import jwt from 'jsonwebtoken'
-import User from '../models/userModel.js'
-import Admin from '../models/adminModel.js'
+import jwt from "jsonwebtoken";
+import User from "../models/userModel.js";
+import Admin from "../models/adminModel.js";
 
-export const verifyToken = async(req, res, next)=>{
-    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1]
-    if(!token) {
-        return res.status(401).json({success: false, message:"Unauthorized - No Token Provided"})
+export const verifyToken = async (req, res, next) => {
+  try {
+    const token =
+      req.cookies?.token || req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized - No Token Provided" });
     }
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET)
 
-        if(!decoded) return res.status(401).json({success:false, message:'Unauthorized - Invalid Token'})
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded)
+      return res
+        .status(401)
+        .json({ success: false, message: "Unauthorized - Invalid Token" });
 
-        const user = await User.findById(decoded.userId) ?? await Admin.findById(decoded.userId)
+    let user = null;
+    let admin = null;
 
-        if(!user){
-            return res.status(404).json({message: 'User not found'})
-        }
+    if (decoded.isAdmin) {
+      admin = await Admin.findById(decoded.userId);
+      if (!admin)
+        return res
+          .status(404)
+          .json({ success: false, message: "Admin not found" });
 
-        if(user.status === 'suspended'){
-            return res.status(404).json({message: 'Your account has been suspended. Please contact admin'})
-        }
+      req.isAdmin = decoded.isAdmin;
+      req.role = admin.role;
+      req.userId = admin._id;
+    } else {
+      user = await User.findById(decoded.userId);
+      if (!user)
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
 
-        if(user.status === 'banned'){
-            return res.status(404).json({message: 'Your account has been banned. Please contact admin'})
-        }
+      if (user.status === "suspended") {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Your account has been suspended. Please contact support.",
+        });
+      }
 
-        req.userId = decoded.userId
+      if (user.status === "banned") {
+        return res.status(403).json({
+          success: false,
+          message:
+            "Your account has been banned. Please contact support.",
+        });
+      }
 
-        if(decoded.isAdmin){
-            req.isAdmin = true
-        }
-         
-        next()
-
-    } catch (error) {
-        if (error.name === "TokenExpiredError") {
-            return res.status(401).json({ success: false, message: "Session expired. Please log in again." });
-        }
-        console.log(error)
-        return res.status(403).json({ success: false, message: "Invalid token." })
+      req.isAdmin = decoded.isAdmin;
+      req.userId = user._id;
     }
-}
+
+    next();
+  } catch (error) {
+    if (error.name === "TokenExpiredError") {
+      return res
+        .status(401)
+        .json({ success: false, message: "Session expired. Please log in again." });
+    }
+
+    console.error("JWT Verification Error:", error);
+    return res
+      .status(403)
+      .json({ success: false, message: "Invalid or malformed token." });
+  }
+};

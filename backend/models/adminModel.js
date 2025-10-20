@@ -6,7 +6,6 @@ const adminSchema = new mongoose.Schema({
   email: { type: String, unique: true, required: true, lowercase: true },
   phone: { type: String, required: true, },
   role: { type: String, required: true, enum: ['Admin', 'Moderator', 'Editor'] },
-  permissions: { type: [String], lowercase: true, enum: ['mediate', 'messages', 'listing-view', 'listing-approval', 'transactions', 'payout'], default: [] },
   password: { type: String, required: true, },
   avatar: String,
 }, {timestamps: true});

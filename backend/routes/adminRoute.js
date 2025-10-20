@@ -2,66 +2,75 @@ import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
 import upload from '../utils/multer.js'
-import {  approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics } from "../controllers/adminControllers.js";
+import {  approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettings, getSettingByKey } from "../controllers/adminControllers.js";
+import { checkAdminPermission } from "../middleware/checkAdminPermissions.js";
 
 const router = Router()
 
-router.post('/create', verifyToken, isAdmin, createAdmin)
-
 router.post('/login', adminLogIn)
 
-router.get('/analytics', verifyToken, isAdmin, getDashboardAnalytics)
+router.use(verifyToken, isAdmin)
 
-router.get('/transactions', verifyToken, isAdmin, getLatestTransactions)
+router.post('/create', createAdmin)
 
-router.get('/listings/analytics', verifyToken, isAdmin, getListingAnalytics)
+router.get('/analytics', getDashboardAnalytics)
 
-router.get('/orders', verifyToken, isAdmin, getOrderAnalytics)
+router.get('/transactions', getLatestTransactions)
 
-router.get('/orders/latest', verifyToken, isAdmin, getLatestOrders)
+router.get('/listings/analytics', getListingAnalytics)
 
-router.get('/transaction/analytics', verifyToken, isAdmin, getTransactionAnalytics)
+router.get('/orders', getOrderAnalytics)
 
-router.get('/users/analytics', verifyToken, isAdmin, getUserAnalytics)
+router.get('/orders/latest', getLatestOrders)
 
-router.get('/users', verifyToken, isAdmin, getUsers)
+router.get('/transaction/analytics', getTransactionAnalytics)
 
-router.get('/admins', verifyToken, isAdmin, getAdmins)
+router.get('/users/analytics', getUserAnalytics)
 
-router.put('/:id/edit', verifyToken, isAdmin, editAdmin)
+router.get('/users', getUsers)
 
-router.delete('/:id/delete', verifyToken, isAdmin, deleteAdmin)
+router.get('/admins', getAdmins)
 
-router.get('/get-withdrawals', verifyToken, isAdmin, getWithdrawals)
+router.put('/:id/edit', editAdmin)
 
-router.get('/approve-withdrawal/:withdrawalId', verifyToken, isAdmin, approveWithdrawal)
+router.delete('/:id/delete', deleteAdmin)
 
-router.get('/reject-withdrawal/:withdrawalId', verifyToken, isAdmin, rejectWithdrawal)
+router.get('/get-withdrawals', getWithdrawals)
 
-router.get('/get-selected-withdrawal/:id', verifyToken, isAdmin, getSelectedWithdrawal)
+router.get('/approve-withdrawal/:withdrawalId', approveWithdrawal)
 
-router.post('/block', verifyToken, isAdmin, blockUser)
+router.get('/reject-withdrawal/:withdrawalId', rejectWithdrawal)
 
-router.post('/get-user', verifyToken, isAdmin, getUser)
+router.get('/get-selected-withdrawal/:id', getSelectedWithdrawal)
 
-router.post('/categories/create', verifyToken, isAdmin, upload.single("image"), createCategory)
+router.post('/block', blockUser)
 
-router.put('/categories/:id/update', verifyToken, isAdmin, upload.single("image"), updateCategory)
+router.post('/get-user', getUser)
 
-router.delete('/categories/:id/delete', verifyToken, isAdmin, deleteCategory)
+router.post('/categories/create', upload.single("image"), createCategory)
 
-router.get('/categories', verifyToken, isAdmin, getAllCategories)
+router.put('/categories/:id/update', upload.single("image"), updateCategory)
 
-router.get('/categories/:id', verifyToken, isAdmin, getCategoryById)
+router.delete('/categories/:id/delete', deleteCategory)
 
-router.put('/categories/:id/toggle', verifyToken, isAdmin, toggleCategoryActiveStatus)
+router.get('/categories', getAllCategories)
 
-router.get('/categories-count', verifyToken, isAdmin, getCategoriesWithProductCount)
+router.get('/categories/:id', getCategoryById)
 
-router.get('/commissions/total', verifyToken, isAdmin, getTotalCommissionAnalytics)
+router.put('/categories/:id/toggle', toggleCategoryActiveStatus)
 
-router.get('/commissions/category', verifyToken, isAdmin, getCategoryCommissionAnalytics)
+router.get('/categories-count', getCategoriesWithProductCount)
 
-router.delete('/delete-product/:productId', verifyToken, isAdmin, deleteProduct)
+router.get('/commissions/total', getTotalCommissionAnalytics)
+
+router.get('/commissions/category', getCategoryCommissionAnalytics)
+
+router.delete('/delete-product/:productId', deleteProduct)
+
+router.post("/settings", checkAdminPermission("manage_settings"), upsertSetting);
+
+router.get("/settings", checkAdminPermission("view_settings"), getSettings);
+
+router.get("/settings/:key", getSettingByKey);
 
 export default router

@@ -11,9 +11,10 @@ import Withdrawal from "../models/withdrawalModel.js"
 import {generateTokenAndSetCookie} from '../utils/generateTokenAndSetCookie.js'
 import cloudinary from '../utils/cloudinary.js'
 import Category from "../models/categoryModel.js"
+import Setting from "../models/generalSettingsModel.js";
 
 export const createAdmin = async (req, res) => {
-    const {firstName, lastName, email, phone, password, role, permissions} = req.body
+    const {firstName, lastName, email, phone, password, role} = req.body
     try {
         const admin = await Admin.findOne({ email });
         if (admin) return res.status(404).json({message: 'Admin already exists'})
@@ -29,7 +30,6 @@ export const createAdmin = async (req, res) => {
           password: hashedPassword,
           phone,
           role,
-          permissions
         })
 
         res.status(200).json({ message: 'Admin Created Successfully'})
@@ -438,7 +438,7 @@ export const getAdmins = async (req, res) => {
 export const editAdmin = async(req, res)=>{
     try {
         const { id } = req.params
-        const {firstName, lastName, email, phone, role, permissions} = req.body
+        const {firstName, lastName, email, phone, role} = req.body
 
         const admin = await Admin.findById(id)
 
@@ -449,7 +449,6 @@ export const editAdmin = async(req, res)=>{
         admin.email = email || admin.email
         admin.phoneNumber = phone || admin.phone
         admin.role = role || admin.role
-        admin.permissions = permissions || admin.permissions
 
         await admin.save()
 
@@ -1126,5 +1125,43 @@ export const getCategoryCommissionAnalytics = async (req, res) => {
       message: "Failed to calculate category commission analytics",
       error: error.message,
     });
+  }
+};
+
+export const upsertSetting = async (req, res) => {
+  try {
+    const { key, value } = req.body;
+
+    const updatedSetting = await Setting.findOneAndUpdate(
+      { key },
+      {
+        $set: { value, updatedBy: req.admin._id, updatedAt: Date.now() },
+        $setOnInsert: { key },
+      },
+      { upsert: true, new: true }
+    );
+
+    res.status(200).json({ success: true, data: updatedSetting });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getSettings = async (req, res) => {
+  try {
+    const settings = await Setting.find();
+    res.status(200).json({ success: true, data: settings });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getSettingByKey = async (req, res) => {
+  try {
+    const setting = await Setting.findOne({ key: req.params.key });
+    if (!setting) return res.status(404).json({ success: false, message: "Setting not found" });
+    res.status(200).json({ success: true, data: setting });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };

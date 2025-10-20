@@ -1,8 +1,6 @@
 import cloudinary from '../utils/cloudinary.js'
 import Product from '../models/productModel.js';
-import ParentCategory from '../models/parentCategoryModel.js';
 import Category from '../models/categoryModel.js';
-import subCategory from '../models/subCategoryModel.js';
 import User from '../models/userModel.js';
 
 export const createProduct = async (req, res) => {
