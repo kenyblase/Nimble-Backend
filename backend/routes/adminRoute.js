@@ -2,7 +2,7 @@ import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
 import upload from '../utils/multer.js'
-import {  approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettings, getSettingByKey } from "../controllers/adminControllers.js";
+import {  approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettings, getSettingByKey, editUser } from "../controllers/adminControllers.js";
 import { checkAdminPermission } from "../middleware/checkAdminPermissions.js";
 
 const router = Router()
@@ -29,6 +29,10 @@ router.get('/users/analytics', getUserAnalytics)
 
 router.get('/users', getUsers)
 
+router.get('/users/:id', getUser)
+
+router.put('/users/:id/edit', editUser)
+
 router.get('/admins', getAdmins)
 
 router.put('/:id/edit', editAdmin)
@@ -44,8 +48,6 @@ router.get('/reject-withdrawal/:withdrawalId', rejectWithdrawal)
 router.get('/get-selected-withdrawal/:id', getSelectedWithdrawal)
 
 router.post('/block', blockUser)
-
-router.post('/get-user', getUser)
 
 router.post('/categories/create', upload.single("image"), createCategory)
 

@@ -513,16 +513,47 @@ export const blockUser = async(req, res)=>{
 
 export const getUser = async(req, res)=>{
     try {
-        const {email} = req.body
+        const {id} = req.params
     
-        const user = await User.findOne({email})
+        const user = await User.findById(id)
     
         if(!user) return res.status(400).json({message: 'User Not Found'})
+
+        const totalListings = await Product.countDocuments({vendor: id})
     
         return res.status(200).json({user: {
             ...user._doc,
             password:undefined
-        }})
+        }, totalListings})
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({message: "internal Server Error"})
+    }
+}
+
+export const editUser = async(req, res)=>{
+    try {
+        const {id} = req.params
+
+        const {firstName, lastName, phoneNumber, gender, businessName, businessInformation, address, city, state} = req.body
+    
+        const user = await User.findById(id)
+    
+        if(!user) return res.status(400).json({message: 'User Not Found'})
+
+        user.firstName = firstName || user.firstName
+        user.lastName = lastName || user.lastName
+        user.phoneNumber = phoneNumber || user.phoneNumber
+        user.gender = gender || user.gender
+        user.businessDetails.businessName = businessName || user.businessDetails.businessName
+        user.businessDetails.businessInformation = businessInformation || user.businessDetails.businessInformation
+        user.businessDetails.address = address || user.businessDetails.address
+        user.businessDetails.city = city || user.businessDetails.city
+        user.businessDetails.state = state || user.businessDetails.state
+
+        await user.save()
+    
+        res.status(200).json({message: 'User Info Updated Successfully'})
     } catch (error) {
         console.log(error)
         return res.status(500).json({message: "internal Server Error"})
