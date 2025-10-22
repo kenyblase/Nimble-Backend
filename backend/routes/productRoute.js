@@ -1,20 +1,21 @@
 import express from 'express';
 import { createProduct, getAllProducts, getProductsByVendor, getProductById, updateProduct, deleteProduct, addReview, getProductReviews, getSubCategoriesAndParentCategoryProducts, getSubCategories, viewProduct, getMostPurchasedProducts, getMostViewedProducts, getRecentlyViewed, getTrendingProductsByParentCategory, getCategoryProducts, getCategory, getParentCategories } from '../controllers/productController.js';
 import { verifyToken } from '../middleware/verifyToken.js'
+import upload from '../utils/multer.js';
 
 const router = express.Router();
 
-router.post('/create-product', verifyToken, createProduct);
+router.post('/create', verifyToken, upload.array("images", 5), createProduct);
 
-router.get('/get-products', getAllProducts);
+router.get('/', getAllProducts);
 
 router.get('/vendor/:vendorId/products', getProductsByVendor);
 
-router.get('/get-product/:productId', getProductById);
+router.get('/:productId', getProductById);
 
-router.put('/update-product/:productId', verifyToken, updateProduct);
+router.put('/:productId/update', verifyToken, updateProduct);
 
-router.delete('/delete-product/:productId', verifyToken, deleteProduct);
+router.delete('/:productId/delete', verifyToken, deleteProduct);
 
 router.post('/:id/reviews', verifyToken, addReview)
 

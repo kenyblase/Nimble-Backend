@@ -49,7 +49,7 @@ const productSchema = new mongoose.Schema({
             type:String
         }
     },
-    shippingOption:[{
+    shippingOptions:[{
         type: String
     }],
     isShippedFromAbroad:{

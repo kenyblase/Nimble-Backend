@@ -1,49 +1,90 @@
+import fs from "fs";
 import cloudinary from '../utils/cloudinary.js'
 import Product from '../models/productModel.js';
 import Category from '../models/categoryModel.js';
 import User from '../models/userModel.js';
 
 export const createProduct = async (req, res) => {
-    const { name, description, price, gender, colours, bulkPrices, videoLink, location, condition, deliveryTimelines, shippingAddress, shippingOption, isShippedFromAbroad, category, sizes, images, isNegotiable } = req.body;
+  try {
+    const {
+      name,
+      description,
+      price,
+      gender,
+      colours,
+      bulkPrices,
+      videoLink,
+      location,
+      condition,
+      deliveryTimelines,
+      shippingAddress,
+      shippingOptions,
+      isShippedFromAbroad,
+      category,
+      sizes,
+      isNegotiable,
+    } = req.body;
+
     const vendor = req.userId;
 
-    try {
-        const uploadedImages = [];
-        for (let i = 0; i < images.length; i++) {
-            const result = await cloudinary.uploader.upload(images[i], {
-                folder: 'marketplace/products',
-            });
-            uploadedImages.push(result.secure_url);
-        }
-
-        const newProduct = new Product({
-            name,
-            description,
-            price,
-            gender,
-            colours,
-            bulkPrices,
-            videoLink,
-            location,
-            condition,
-            deliveryTimelines,
-            shippingAddress,
-            shippingOption,
-            isShippedFromAbroad,
-            category,
-            sizes,
-            vendor,
-            images: uploadedImages,
-            isNegotiable
-        });
-
-        await newProduct.save();
-        
-        return res.status(201).json({ message: 'Product created successfully', product: newProduct });
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'Internal server error' });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: "At least one product image is required" });
     }
+
+    const uploadedImages = [];
+    for (const file of req.files) {
+      const uploadRes = await cloudinary.uploader.upload(file.path, {
+        folder: "marketplace/products",
+        resource_type: "image",
+      });
+
+      uploadedImages.push(uploadRes.secure_url);
+
+      fs.unlink(file.path, (err) => {
+        if (err) console.error("Error deleting temp file:", err);
+      });
+    }
+
+    // Parse fields that might be sent as JSON strings
+    const parsedColours = colours ? JSON.parse(colours) : [];
+    const parsedSizes = sizes ? JSON.parse(sizes) : [];
+    const parsedBulkPrices = bulkPrices ? JSON.parse(bulkPrices) : [];
+    const parsedDeliveryTimelines = deliveryTimelines ? JSON.parse(deliveryTimelines) : [];
+    const parsedshippingOptions = shippingOptions ? JSON.parse(shippingOptions) : [];
+
+    // Create product
+    const newProduct = await Product.create({
+      name,
+      description,
+      price,
+      gender,
+      colours: parsedColours,
+      bulkPrices: parsedBulkPrices,
+      videoLink,
+      location,
+      condition,
+      deliveryTimelines: parsedDeliveryTimelines,
+      shippingAddress,
+      shippingOptions: parsedshippingOptions,
+      isShippedFromAbroad,
+      category,
+      sizes: parsedSizes,
+      vendor,
+      images: uploadedImages,
+      isNegotiable,
+    });
+
+    return res.status(201).json({
+      message: "Product created successfully",
+      product: newProduct,
+    });
+  } catch (error) {
+    console.error("Create Product Error:", error);
+    return res.status(500).json({
+      message: "Failed to create product",
+      error: error.message,
+    });
+  }
 };
 
 export const getAllProducts = async (req, res) => {
