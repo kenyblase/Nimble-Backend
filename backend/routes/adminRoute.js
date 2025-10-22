@@ -2,7 +2,7 @@ import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
 import upload from '../utils/multer.js'
-import {  approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettings, getSettingByKey, editUser } from "../controllers/adminControllers.js";
+import {  approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettings, getSettingByKey, editUser, toggleUserStatus } from "../controllers/adminControllers.js";
 import { checkAdminPermission } from "../middleware/checkAdminPermissions.js";
 
 const router = Router()
@@ -32,6 +32,8 @@ router.get('/users', getUsers)
 router.get('/users/:id', getUser)
 
 router.put('/users/:id/edit', editUser)
+
+router.put('/users/:id/status', toggleUserStatus);
 
 router.get('/admins', getAdmins)
 
