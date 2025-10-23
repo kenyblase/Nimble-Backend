@@ -1,12 +1,12 @@
+import fs from 'fs'
+import cloudinary from '../utils/cloudinary.js';
 import Request from "../models/requestModel.js";
 
-// Create a new request
 export const createRequest = async (req, res) => {
   try {
-    const userId = req.userId; // assuming verifyToken middleware sets this
+    const userId = req.userId;
     const {
       category,
-      productImages,
       videoLink,
       title,
       location,
@@ -16,10 +16,28 @@ export const createRequest = async (req, res) => {
       isNegotiable,
     } = req.body;
 
+    if (!req.files || req.files.length === 0) {
+          return res.status(400).json({ message: "At least one product image is required" });
+        }
+    
+        const uploadedImages = [];
+        for (const file of req.files) {
+          const uploadRes = await cloudinary.uploader.upload(file.path, {
+            folder: "marketplace/requests",
+            resource_type: "image",
+          });
+    
+          uploadedImages.push(uploadRes.secure_url);
+    
+          fs.unlink(file.path, (err) => {
+            if (err) console.error("Error deleting temp file:", err);
+          });
+        }
+
     const newRequest = new Request({
       user: userId,
       category,
-      productImages,
+      productImages: uploadedImages,
       videoLink,
       title,
       location,
