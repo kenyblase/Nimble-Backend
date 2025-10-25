@@ -73,9 +73,9 @@ export const getDashboardAnalytics = async (req, res) => {
     const [totalCompletedOrders, activeListings, activeUsers, totalPending] =
       await Promise.all([
         Order.find({ transactionStatus: "completed" }),
-        Product.countDocuments({ status: "active" }),
+        Product.countDocuments({type: 'listing',  status: "active" }),
         User.countDocuments({status: 'active'}),
-        Product.countDocuments({ status: "pending" }),
+        Product.countDocuments({type: 'listing', status: "pending" }),
       ]);
 
     const totalSales = totalCompletedOrders.reduce(
@@ -92,6 +92,7 @@ export const getDashboardAnalytics = async (req, res) => {
         }),
 
         Product.countDocuments({
+          type: 'listing',
           status: "active",
           createdAt: { $gte: lastWeek, $lt: today },
         }),
@@ -102,6 +103,7 @@ export const getDashboardAnalytics = async (req, res) => {
         }),
   
         Product.countDocuments({
+          type: 'listing',
           status: "pending",
           createdAt: { $gte: yesterday, $lt: today },
         }),
@@ -190,24 +192,128 @@ export const getLatestTransactions = async (req, res) => {
   }
 };
 
-export const getListingAnalytics = async(req, res)=>{
-    try {
-       const [activeListings, soldListings, pendingListings] = await Promise.all(
-        [
-            await Product.countDocuments({status: 'active'}),
-            await Product.countDocuments({status: 'sold'}),
-            await Product.countDocuments({status: 'pending'})
-        ])
+export const getListingAnalytics = async (req, res) => {
+  try {
+    const today = new Date();
 
-        res.status(200).json({message: 'Listings Fetched Successfully', data: {
-            activeListings,
-            soldListings,
-            pendingListings
-        }})
-    } catch (error) {
-        res.status(500).json({message: "Internal Server Error"})
-    }
-}
+    // Define date ranges
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const lastWeek = new Date(today);
+    lastWeek.setDate(today.getDate() - 7);
+
+    // Current counts
+    const [activeListings, closedListings, expiredListings] = await Promise.all([
+      Product.countDocuments({ type: "listing", status: "active" }),
+      Product.countDocuments({ type: "listing", status: "closed" }),
+      Product.countDocuments({ type: "listing", status: "expired" }),
+    ]);
+
+    // Previous period counts
+    const [yesterdayActive, yesterdayClosed, lastWeekExpired] = await Promise.all([
+      // Yesterday - active listings
+      Product.countDocuments({
+        type: "listing",
+        status: "active",
+        createdAt: { $gte: yesterday, $lt: today },
+      }),
+
+      // Yesterday - closed listings
+      Product.countDocuments({
+        type: "listing",
+        status: "closed",
+        createdAt: { $gte: yesterday, $lt: today },
+      }),
+
+      // Last week - expired listings
+      Product.countDocuments({
+        type: "listing",
+        status: "expired",
+        createdAt: { $gte: lastWeek, $lt: today },
+      }),
+    ]);
+
+    // Helper to calculate % change
+    const calcChange = (current, prev) => {
+      if (!prev || prev === 0) return 0;
+      return ((current - prev) / prev) * 100;
+    };
+
+    // Calculate trends
+    const activeChange = calcChange(activeListings, yesterdayActive);
+    const closedChange = calcChange(closedListings, yesterdayClosed);
+    const expiredChange = calcChange(expiredListings, lastWeekExpired);
+
+    // Response (same structure as getUserAnalytics)
+    res.status(200).json({
+      message: "Listing analytics fetched successfully",
+      data: {
+        activeListings: {
+          value: activeListings,
+          change: activeChange.toFixed(1),
+          trend: activeChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+        closedListings: {
+          value: closedListings,
+          change: closedChange.toFixed(1),
+          trend: closedChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+        expiredListings: {
+          value: expiredListings,
+          change: expiredChange.toFixed(1),
+          trend: expiredChange >= 0 ? "up" : "down",
+          duration: "from past week",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Listing Analytics Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const getListedProducts = async (req, res) => {
+  try {
+    const { status='active', page = 1, limit = 10 } = req.query;
+
+    const query = {type: 'listing'};
+    if (status) query.status = status; // filter by status only if provided
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .populate("vendor", "firstName lastName")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Product.countDocuments(query),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Products fetched successfully",
+      data: {
+        products,
+        pagination: {
+          total,
+          page: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: skip + products.length < total,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching listed products:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error, unable to fetch products",
+    });
+  }
+};
 
 export const getOrderAnalytics = async(req, res)=>{
     try {

@@ -1,6 +1,6 @@
 import fs from 'fs'
 import cloudinary from '../utils/cloudinary.js';
-import Request from "../models/requestModel.js";
+import Product from '../models/productModel.js';
 
 export const createRequest = async (req, res) => {
   try {
@@ -34,12 +34,13 @@ export const createRequest = async (req, res) => {
           });
         }
 
-    const newRequest = new Request({
-      user: userId,
+    const newRequest = new Product({
+      type: 'request',
+      vendor: userId,
       category,
-      productImages: uploadedImages,
+      images: uploadedImages,
       videoLink,
-      title,
+      name: title,
       location,
       condition,
       description,
@@ -69,7 +70,7 @@ export const getAllRequests = async (req, res) => {
 
     // Optional filters
     const { category, state, city, condition, search } = req.query;
-    const filter = {};
+    const filter = {type: 'request'};
 
     if (category) filter.category = category;
     if (condition) filter.condition = condition;
@@ -84,12 +85,12 @@ export const getAllRequests = async (req, res) => {
 
     // Fetch requests with pagination and filtering
     const [requests, totalCount] = await Promise.all([
-      Request.find(filter)
+      Product.find(filter)
         .populate("user", "name email")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      Request.countDocuments(filter),
+      Product.countDocuments(filter),
     ]);
 
     const totalPages = Math.ceil(totalCount / limit);

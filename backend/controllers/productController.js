@@ -52,8 +52,22 @@ export const createProduct = async (req, res) => {
     const parsedDeliveryTimelines = deliveryTimelines ? JSON.parse(deliveryTimelines) : [];
     const parsedshippingOptions = shippingOptions ? JSON.parse(shippingOptions) : [];
 
+    let parsedLocation
+
+    if (location && typeof location === "string") {
+      try {
+        parsedLocation = JSON.parse(location);
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid location format — must be valid JSON string.",
+        });
+      }
+    }
+
     // Create product
     const newProduct = await Product.create({
+      type: 'listing',
       name,
       description,
       price,
@@ -61,7 +75,7 @@ export const createProduct = async (req, res) => {
       colours: parsedColours,
       bulkPrices: parsedBulkPrices,
       videoLink,
-      location,
+      location: parsedLocation,
       condition,
       deliveryTimelines: parsedDeliveryTimelines,
       shippingAddress,
@@ -113,13 +127,13 @@ export const getAllProducts = async (req, res) => {
         //     ];
         // }
 
-        const products = await Product.find({status: 'active'})
+        const products = await Product.find({type:'listing', status: 'active'})
             .populate('vendor', 'businessName')
             .skip(skip)
             .limit(limit)
             .exec();
 
-        const totalCount = await Product.countDocuments({status: 'active'});
+        const totalCount = await Product.countDocuments({type: 'listing', status: 'active'});
 
         res.status(200).json({
             products,
@@ -138,7 +152,7 @@ export const getProductsByVendor = async (req, res) => {
     const { vendorId } = req.params;
 
     try {
-        const products = await Product.find({ vendor: vendorId });
+        const products = await Product.find({ type: 'listing', vendor: vendorId });
         return res.status(200).json({ products });
     } catch (error) {
         console.error(error);
@@ -164,7 +178,7 @@ export const getProductById = async (req, res) => {
 export const updateProduct = async (req, res) => {
     const { productId } = req.params;
     const vendorId = req.userId
-    const { name, description, price, gender, colours, bulkPrices, videoLink, location, condition, deliveryTimelines, shippingAddress, shippingOption, isShippedFromAbroad, category, sizes, images, isNegotiable } = req.body;
+    const { name, description, price, gender, colours, bulkPrices, videoLink, location, condition, deliveryTimelines, shippingAddress, shippingOptions, isShippedFromAbroad, category, sizes, images, isNegotiable } = req.body;
 
     try {
         const product = await Product.findById(productId);
@@ -207,7 +221,7 @@ export const updateProduct = async (req, res) => {
         product.condition = condition || product.condition, 
         product.deliveryTimelines = deliveryTimelines || product.deliveryTimelines, 
         product.shippingAddress = shippingAddress || product.shippingAddress, 
-        product.shippingOption = shippingOption || product.shippingOption, 
+        product.shippingOptions = shippingOptions || product.shippingOptions, 
         product.isShippedFromAbroad = isShippedFromAbroad || product.isShippedFromAbroad,
 
         await product.save();
@@ -338,10 +352,10 @@ export const getSubCategoriesAndParentCategoryProducts = async (req, res) => {
       const subCategories = await Category.find({ parentCategory: id, isActive: true });
   
       const [products, totalProducts] = await Promise.all([
-        Product.find({ category: id, status: 'active' })
+        Product.find({ type: 'listing', category: id, status: 'active' })
           .skip(skip)
           .limit(limit),
-        Product.countDocuments({ category: id, status: 'active' })
+        Product.countDocuments({ type: 'listing', category: id, status: 'active' })
       ]);
   
       const totalPages = Math.ceil(totalProducts / limit);
@@ -369,10 +383,10 @@ const skip = (page - 1) * limit;
 
 try {
     const [products, totalProducts] = await Promise.all([
-    Product.find({ category: id, status: 'active' })
+    Product.find({ type: 'listing', category: id, status: 'active' })
         .skip(skip)
         .limit(limit),
-    Product.countDocuments({ category: id, status: 'active' })
+    Product.countDocuments({ type: 'listing', category: id, status: 'active' })
     ]);
 
     const totalPages = Math.ceil(totalProducts / limit);
@@ -424,7 +438,7 @@ export const viewProduct = async (req, res) => {
 
 export const getMostPurchasedProducts = async (req, res) => {
   try {
-    const products = await Product.find().sort({ purchases: -1 }).limit(10)
+    const products = await Product.find({type: 'listing'}).sort({ purchases: -1 }).limit(10)
     res.status(200).json({ success: true, products })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -433,7 +447,7 @@ export const getMostPurchasedProducts = async (req, res) => {
 
 export const getMostViewedProducts = async (req, res) => {
   try {
-    const products = await Product.find().sort({ views: -1 }).limit(10)
+    const products = await Product.find({type: 'listing'}).sort({ views: -1 }).limit(10)
     res.status(200).json({ success: true, products })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -460,11 +474,11 @@ export const getTrendingProductsByParentCategory = async (req, res) => {
 
     // Find products in those subcategories and sort by views (descending)
     const [products, totalProducts] = await Promise.all([
-      Product.find({ category: categoryId, status: 'active' })
+      Product.find({ type: 'listing', category: categoryId, status: 'active' })
         .sort({ views: -1 }) // 👈 Trending logic (most viewed first)
         .skip(skip)
         .limit(limit),
-      Product.countDocuments({ category: categoryId, status: 'active' }),
+      Product.countDocuments({ type: 'listing', category: categoryId, status: 'active' }),
     ]);
 
     const totalPages = Math.ceil(totalProducts / limit);

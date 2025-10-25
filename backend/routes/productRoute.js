@@ -11,8 +11,6 @@ router.get('/', getAllProducts);
 
 router.get('/vendor/:vendorId/products', getProductsByVendor);
 
-router.get('/:productId', getProductById);
-
 router.put('/:productId/update', verifyToken, updateProduct);
 
 router.delete('/:productId/delete', verifyToken, deleteProduct);
@@ -40,5 +38,7 @@ router.get('/most-viewed', getMostViewedProducts)
 router.get('/recently-viewed', verifyToken, getRecentlyViewed)
 
 router.get("/trending/:categoryId", getTrendingProductsByParentCategory);
+
+router.get('/:productId', getProductById);
 
 export default router;

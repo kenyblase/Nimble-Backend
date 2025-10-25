@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const productSchema = new mongoose.Schema({
     name: { type: String, required: true },
+    type: { type: String, required: true, enum: ['listing', 'request'] },
     description: { type: String },
     price: { type: Number, required: true },
     category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category', required: true },
@@ -65,6 +66,7 @@ const productSchema = new mongoose.Schema({
     },
     images: [String],
     isNegotiable: { type: Boolean, default: true },
+    listedOn: Date,
     reviews:[{
         user: {
             type: mongoose.Schema.Types.ObjectId,
@@ -97,6 +99,7 @@ const productSchema = new mongoose.Schema({
     },
     views: { type: Number, default: 0 },
     purchases: { type: Number, default: 0 },
+    likes: { type: Number, default: 0 },
 }, {timestamps: true});
 
 const Product = mongoose.model('Product', productSchema);
