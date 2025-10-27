@@ -54,7 +54,7 @@ const productSchema = new mongoose.Schema({
         type: String
     }],
     isShippedFromAbroad:{
-        type: String
+        type: Boolean
     },
     videoLink: {
         type: String

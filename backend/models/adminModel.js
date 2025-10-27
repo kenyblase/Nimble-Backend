@@ -7,7 +7,6 @@ const adminSchema = new mongoose.Schema({
   phone: { type: String, required: true, },
   role: { type: String, required: true, enum: ['Admin', 'Moderator', 'Editor'] },
   password: { type: String, required: true, },
-  avatar: String,
 }, {timestamps: true});
 
 const Admin = mongoose.model("Admin", adminSchema);

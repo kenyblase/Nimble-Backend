@@ -194,6 +194,8 @@ export const getLatestTransactions = async (req, res) => {
 
 export const getListingAnalytics = async (req, res) => {
   try {
+    const { type='listing'} = req.query;
+
     const today = new Date();
 
     // Define date ranges
@@ -205,32 +207,32 @@ export const getListingAnalytics = async (req, res) => {
 
     // Current counts
     const [activeListings, closedListings, expiredListings] = await Promise.all([
-      Product.countDocuments({ type: "listing", status: "active" }),
-      Product.countDocuments({ type: "listing", status: "closed" }),
-      Product.countDocuments({ type: "listing", status: "expired" }),
+      Product.countDocuments({ type, status: "active" }),
+      Product.countDocuments({ type, status: "closed" }),
+      Product.countDocuments({ type, status: "expired" }),
     ]);
 
     // Previous period counts
     const [yesterdayActive, yesterdayClosed, lastWeekExpired] = await Promise.all([
       // Yesterday - active listings
       Product.countDocuments({
-        type: "listing",
+        type,
         status: "active",
-        createdAt: { $gte: yesterday, $lt: today },
+        listedOn: { $gte: yesterday, $lt: today },
       }),
 
       // Yesterday - closed listings
       Product.countDocuments({
-        type: "listing",
+        type,
         status: "closed",
-        createdAt: { $gte: yesterday, $lt: today },
+        listedOn: { $gte: yesterday, $lt: today },
       }),
 
       // Last week - expired listings
       Product.countDocuments({
-        type: "listing",
+        type,
         status: "expired",
-        createdAt: { $gte: lastWeek, $lt: today },
+        listedOn: { $gte: lastWeek, $lt: today },
       }),
     ]);
 
@@ -277,9 +279,9 @@ export const getListingAnalytics = async (req, res) => {
 
 export const getListedProducts = async (req, res) => {
   try {
-    const { status='active', page = 1, limit = 10 } = req.query;
+    const { type='listing', status='active', page = 1, limit = 10 } = req.query;
 
-    const query = {type: 'listing'};
+    const query = {type};
     if (status) query.status = status; // filter by status only if provided
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -312,6 +314,55 @@ export const getListedProducts = async (req, res) => {
       success: false,
       message: "Server error, unable to fetch products",
     });
+  }
+};
+
+export const getProductById = async(req, res)=>{
+    try {
+        const {id} = req.params
+    
+        const product = await Product.findById(id).populate("vendor", "firstName lastName")
+    
+        if(!product) return res.status(400).json({message: 'Product Not Found'})
+    
+        return res.status(200).json(product)
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({message: "internal Server Error"})
+    }
+}
+
+export const toggleProductStatus = async (req, res) => {
+  try {
+    const { id } = req.params;        
+    const { status } = req.body;         
+
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status is required' });
+    }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const newStatus = product.status === status ? 'active' : status;
+
+    if(status === 'active'){
+      product.listedOn = Date.now()
+    }
+
+    product.status = newStatus;
+    await product.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Product status changed to ${newStatus}`,
+      data: product
+    });
+  } catch (error) {
+    console.error('Error toggling product status:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
