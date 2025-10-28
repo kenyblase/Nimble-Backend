@@ -30,12 +30,6 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: ''
     },
-    role:{
-        type: String,
-        enum: ['USER', 'VENDOR', 'ADMIN'],
-        default: 'USER',
-        required: true
-    },
     businessDetails:{
         businessName: {
             type: String,
@@ -122,6 +116,14 @@ const userSchema = new mongoose.Schema({
             default: false
         }
     }],
+    averageRating: {
+    type: Number,
+    default: 0,
+    },
+    numReviews: {
+    type: Number,
+    default: 0,
+    },
     recentlyViewed: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
     resetPasswordToken:String,
     resetPasswordExpiresAt:Date,

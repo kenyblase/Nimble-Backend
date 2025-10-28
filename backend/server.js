@@ -3,11 +3,10 @@ import cookieParser from 'cookie-parser'
 import {connectdb} from './db/connectdb.js'
 import authRoutes from './routes/authRoute.js'
 import adminRoutes from './routes/adminRoute.js'
-import messageRoutes from './routes/messageRoute.js'
+import chatRoutes from './routes/chatRoute.js'
 import productRoutes from './routes/productRoute.js'
 import requestRoutes from "./routes/requestRoute.js";
 import orderRoutes from './routes/orderRoute.js'
-import negotiationRoutes from './routes/negotiationRoutes.js'
 import paymentRoutes from './routes/paymentRoute.js'
 import withdrawalRoutes from './routes/withdrawalRoute.js'
 import settingsRoutes from './routes/settingsRoute.js'
@@ -40,11 +39,10 @@ app.use(cookieParser())
 
 app.use('/api/auth', authRoutes)
 app.use('/api/admin', adminRoutes)
-app.use('/api/messages', messageRoutes)
+app.use('/api/chats', chatRoutes)
 app.use('/api/products', productRoutes)
 app.use("/api/requests", requestRoutes);
 app.use('/api/orders', orderRoutes)
-app.use('/api/offers', negotiationRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/withdrawals', withdrawalRoutes)
 app.use('/api/notifications', notificationRoutes)
