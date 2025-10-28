@@ -1,6 +1,4 @@
 import Review from "../models/reviewModel.js";
-import Product from "../models/Product.js";
-import User from "../models/User.js";
 import { updateAverageRating } from '../utils/calculateAverageRating.js'
 
 export const addReview = async (req, res) => {
@@ -58,9 +56,23 @@ export const getProductReviews = async (req, res) => {
       .populate("user", "firstName lastName profilePic")
       .sort({ createdAt: -1 });
 
+     const ratingBreakdown = await Review.aggregate([
+      { $match: { reviewedId: new mongoose.Types.ObjectId(productId), reviewedModel: "Product" } },
+      { $group: { _id: "$rating", count: { $sum: 1 } } },
+      { $sort: { _id: -1 } },
+    ]);
+
+    const breakdown = ratingBreakdown.reduce((acc, cur) => {
+      acc[cur._id] = cur.count;
+      return acc;
+    }, {});
+
     res.status(200).json({
       message: "Product reviews fetched successfully",
-      data: reviews,
+      data: {
+        reviews,
+        breakdown
+      }
     });
   } catch (error) {
     console.error("Get Product Reviews Error:", error);
@@ -79,9 +91,23 @@ export const getUserReviews = async (req, res) => {
       .populate("user", "firstName lastName profilePic")
       .sort({ createdAt: -1 });
 
+    const ratingBreakdown = await Review.aggregate([
+      { $match: { reviewedId: new mongoose.Types.ObjectId(userId), reviewedModel: "User" } },
+      { $group: { _id: "$rating", count: { $sum: 1 } } },
+      { $sort: { _id: -1 } },
+    ]);
+
+    const breakdown = ratingBreakdown.reduce((acc, cur) => {
+      acc[cur._id] = cur.count;
+      return acc;
+    }, {});
+
     res.status(200).json({
       message: "User reviews fetched successfully",
-      data: reviews,
+      data: {
+        reviews,
+        breakdown,
+      }
     });
   } catch (error) {
     console.error("Get User Reviews Error:", error);
