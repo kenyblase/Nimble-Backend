@@ -2,7 +2,7 @@ import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
 import upload from '../utils/multer.js'
-import {  approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettings, getSettingByKey, editUser, toggleUserStatus, getListedProducts, getProductById, toggleProductStatus } from "../controllers/adminControllers.js";
+import { approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestOrders, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettings, getSettingByKey, editUser, toggleUserStatus, getListedProducts, getProductById, toggleProductStatus, getListedProductsByUser, getListedProductsByCategory } from "../controllers/adminControllers.js";
 import { checkAdminPermission } from "../middleware/checkAdminPermissions.js";
 
 const router = Router()
@@ -20,6 +20,10 @@ router.get('/transactions', getLatestTransactions)
 router.get('/listings/analytics', getListingAnalytics)
 
 router.get('/listings/products', getListedProducts)
+
+router.get('/listings/products/user/:id', getListedProductsByUser)
+
+router.get('/listings/products/category/:id', getListedProductsByCategory)
 
 router.get('/listings/products/:id', getProductById)
 

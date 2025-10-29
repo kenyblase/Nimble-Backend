@@ -163,14 +163,36 @@ export const getLatestTransactions = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 4;
+    const status = req.query.status;
+    const search = req.query.search?.trim();
 
     const skip = (page - 1) * limit;
 
-    const total = await Transaction.countDocuments();
+    const query = {};
 
-    const transactions = await Transaction.find()
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    // Search by user firstName or lastName
+    if (search) {
+      const users = await User.find({
+        $or: [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+
+      const userIds = users.map(u => u._id);
+      query.user = { $in: userIds };
+    }
+
+    const total = await Transaction.countDocuments(query);
+
+    const transactions = await Transaction.find(query)
       .populate('user', 'firstName lastName')
-      .sort({ createdAt: -1 }) 
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
@@ -282,6 +304,88 @@ export const getListedProducts = async (req, res) => {
     const { type='listing', status='active', page = 1, limit = 10 } = req.query;
 
     const query = {type};
+    if (status) query.status = status; // filter by status only if provided
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .populate("vendor", "firstName lastName")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Product.countDocuments(query),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Products fetched successfully",
+      data: {
+        products,
+        pagination: {
+          total,
+          page: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: skip + products.length < total,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching listed products:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error, unable to fetch products",
+    });
+  }
+};
+
+export const getListedProductsByUser = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { status='active', page = 1, limit = 10 } = req.query;
+
+    const query = {vendor: id};
+    if (status) query.status = status; // filter by status only if provided
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .populate("vendor", "firstName lastName")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Product.countDocuments(query),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Products fetched successfully",
+      data: {
+        products,
+        pagination: {
+          total,
+          page: parseInt(page),
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: skip + products.length < total,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching listed products:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error, unable to fetch products",
+    });
+  }
+};
+
+export const getListedProductsByCategory = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { status='active', page = 1, limit = 10 } = req.query;
+
+    const query = {category: id};
     if (status) query.status = status; // filter by status only if provided
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
