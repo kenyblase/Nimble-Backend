@@ -56,23 +56,14 @@ export const getProductReviews = async (req, res) => {
       .populate("user", "firstName lastName profilePic")
       .sort({ createdAt: -1 });
 
-     const ratingBreakdown = await Review.aggregate([
-      { $match: { reviewedId: new mongoose.Types.ObjectId(productId), reviewedModel: "Product" } },
-      { $group: { _id: "$rating", count: { $sum: 1 } } },
-      { $sort: { _id: -1 } },
-    ]);
-
-    const breakdown = ratingBreakdown.reduce((acc, cur) => {
-      acc[cur._id] = cur.count;
-      return acc;
-    }, {});
+    const breakdown = await getRatingBreakdown(productId, "Product");
 
     res.status(200).json({
       message: "Product reviews fetched successfully",
       data: {
         reviews,
-        breakdown
-      }
+        breakdown,
+      },
     });
   } catch (error) {
     console.error("Get Product Reviews Error:", error);
@@ -91,23 +82,14 @@ export const getUserReviews = async (req, res) => {
       .populate("user", "firstName lastName profilePic")
       .sort({ createdAt: -1 });
 
-    const ratingBreakdown = await Review.aggregate([
-      { $match: { reviewedId: new mongoose.Types.ObjectId(userId), reviewedModel: "User" } },
-      { $group: { _id: "$rating", count: { $sum: 1 } } },
-      { $sort: { _id: -1 } },
-    ]);
-
-    const breakdown = ratingBreakdown.reduce((acc, cur) => {
-      acc[cur._id] = cur.count;
-      return acc;
-    }, {});
+    const breakdown = await getRatingBreakdown(userId, "User");
 
     res.status(200).json({
       message: "User reviews fetched successfully",
       data: {
         reviews,
-        breakdown,
-      }
+        breakdown
+      },
     });
   } catch (error) {
     console.error("Get User Reviews Error:", error);
@@ -137,4 +119,18 @@ export const deleteReview = async (req, res) => {
     console.error("Delete Review Error:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
+};
+
+const getRatingBreakdown = async (reviewedId, reviewedModel) => {
+  const ratingBreakdown = await Review.aggregate([
+    { $match: { reviewedId, reviewedModel } },
+    { $group: { _id: "$rating", count: { $sum: 1 } } },
+    { $sort: { _id: -1 } },
+  ]);
+
+  // Ensure all ratings 1–5 exist
+  return [1, 2, 3, 4, 5].reduce((acc, rating) => {
+    acc[rating] = ratingBreakdown.find(b => b._id === rating)?.count || 0;
+    return acc;
+  }, {});
 };
