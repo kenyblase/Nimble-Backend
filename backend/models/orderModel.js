@@ -37,6 +37,23 @@ const orderSchema = new mongoose.Schema({
     shippedDate: {
         type: Date 
     },
+    deliveryAddress:{
+        name: {
+            type: String
+        },
+        address: {
+            type: String
+        },
+        phoneNumber: {
+            type: String
+        },
+        city: {
+            type: String
+        },
+        state: {
+            type: String
+        },
+    },
     expectedDeliveryDate: {
         type: Date,
     },

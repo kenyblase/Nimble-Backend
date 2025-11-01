@@ -29,6 +29,10 @@ export const createOrderWithBalance = async (req, res) => {
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
+    const defaultDeliveryAddress = user.deliveryAddress.find(a => a.isDefault);
+
+    if (!defaultDeliveryAddress) return res.status(400).json({ message: "Default Delivery Address Not Set" });
+
     const vendor = await User.findById(vendorId).session(session);
     if (!vendor) {
       return res.status(400).json({ message: "Vendor not found" });
@@ -63,6 +67,7 @@ export const createOrderWithBalance = async (req, res) => {
           commissionAmount,
           paymentStatus: "paid",
           paymentMethod: "balance",
+          deliveryAddress: defaultDeliveryAddress
         },
       ],
       { session }
@@ -148,6 +153,10 @@ export const createOrderWithPaystack = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(400).json({ message: "User not found" });
 
+    const defaultDeliveryAddress = user.deliveryAddress.find(a => a.isDefault);
+
+    if (!defaultDeliveryAddress) return res.status(400).json({ message: "Default Delivery Address Not Set" });
+
     const vendor = await User.findById(vendorId);
     if (!vendor) return res.status(400).json({ message: "Vendor not found" });
 
@@ -178,6 +187,7 @@ export const createOrderWithPaystack = async (req, res) => {
       commissionAmount,
       paymentStatus: "pending",
       paymentMethod: "payment-gateway",
+      deliveryAddress: defaultDeliveryAddress
     });
 
     const paystackResponse = await axios.post(
