@@ -470,45 +470,193 @@ export const toggleProductStatus = async (req, res) => {
   }
 };
 
-export const getOrderAnalytics = async(req, res)=>{
-    try {
-       const [totalOrders, completedOrders, pendingOrders] = await Promise.all(
-        [
-            await Order.countDocuments(),
-            await Order.countDocuments({transactionStatus: 'completed'}),
-            await Order.countDocuments({transactionStatus: 'pending'})
-        ])
+export const getOrderAnalytics = async (req, res) => {
+  try {
+    const today = new Date();
 
-        res.status(200).json({message: 'Orders Fetched Successfully', data: {
-            totalOrders,
-            completedOrders,
-            pendingOrders
-        }})
-    } catch (error) {
-        res.status(500).json({message: "Internal Server Error"})
+    // Define date ranges
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    const lastWeek = new Date(today);
+    lastWeek.setDate(today.getDate() - 7);
+
+    // Current counts
+    const [totalOrders, completedOrders, pendingOrders] = await Promise.all([
+      Order.countDocuments(),
+      Order.countDocuments({ transactionStatus: "completed" }),
+      Order.countDocuments({ transactionStatus: "pending" }),
+    ]);
+
+    // Previous period counts
+    const [yesterdayOrders, yesterdayCompleted, lastWeekPending] = await Promise.all([
+      // Yesterday - total orders
+      Order.countDocuments({
+        createdAt: { $gte: yesterday, $lt: today },
+      }),
+
+      // Yesterday - completed orders
+      Order.countDocuments({
+        transactionStatus: "completed",
+        createdAt: { $gte: yesterday, $lt: today },
+      }),
+
+      // Last week - pending orders
+      Order.countDocuments({
+        transactionStatus: "pending",
+        createdAt: { $gte: lastWeek, $lt: today },
+      }),
+    ]);
+
+    // Helper to calculate % change
+    const calcChange = (current, prev) => {
+      if (!prev || prev === 0) return 0;
+      return ((current - prev) / prev) * 100;
+    };
+
+    // Calculate percentage changes
+    const totalChange = calcChange(totalOrders, yesterdayOrders);
+    const completedChange = calcChange(completedOrders, yesterdayCompleted);
+    const pendingChange = calcChange(pendingOrders, lastWeekPending);
+
+    // Response
+    res.status(200).json({
+      message: "Order analytics fetched successfully",
+      data: {
+        totalOrders: {
+          value: totalOrders,
+          change: totalChange.toFixed(1),
+          trend: totalChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+        completedOrders: {
+          value: completedOrders,
+          change: completedChange.toFixed(1),
+          trend: completedChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+        pendingOrders: {
+          value: pendingOrders,
+          change: pendingChange.toFixed(1),
+          trend: pendingChange >= 0 ? "up" : "down",
+          duration: "from past week",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Order Analytics Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const getOrders = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "", filter = "" } = req.query;
+
+    const pipeline = [
+      // Populate user
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+
+      // Populate vendor
+      {
+        $lookup: {
+          from: "users",
+          localField: "vendor",
+          foreignField: "_id",
+          as: "vendor",
+        },
+      },
+      { $unwind: { path: "$vendor", preserveNullAndEmptyArrays: true } },
+
+      // Populate product
+      {
+        $lookup: {
+          from: "products",
+          localField: "product",
+          foreignField: "_id",
+          as: "product",
+        },
+      },
+      { $unwind: { path: "$product", preserveNullAndEmptyArrays: true } },
+
+      // Populate product.category
+      {
+        $lookup: {
+          from: "categories",
+          localField: "product.category",
+          foreignField: "_id",
+          as: "product.category",
+        },
+      },
+      { $unwind: { path: "$product.category", preserveNullAndEmptyArrays: true } },
+    ];
+
+    const match = {};
+
+    if (search) {
+      match.$or = [
+        { "user.firstName": { $regex: search, $options: "i" } },
+        { "user.lastName": { $regex: search, $options: "i" } },
+        { "vendor.firstName": { $regex: search, $options: "i" } },
+        { "vendor.lastName": { $regex: search, $options: "i" } },
+        { "product.name": { $regex: search, $options: "i" } },
+        { "product.category.name": { $regex: search, $options: "i" } },
+      ];
     }
-}
 
-export const getLatestOrders = async(req, res)=>{
+    if (filter) match.transactionStatus = filter;
+
+    if (Object.keys(match).length > 0) {
+      pipeline.push({ $match: match });
+    }
+
+    // Clone the pipeline before pagination for total count
+    const totalPipeline = [...pipeline, { $count: "total" }];
+    const totalOrders = await Order.aggregate(totalPipeline);
+    const total = totalOrders[0]?.total || 0;
+
+    // Pagination and sorting
+    pipeline.push({ $sort: { createdAt: -1 } });
+    pipeline.push({ $skip: (page - 1) * Number(limit) });
+    pipeline.push({ $limit: Number(limit) });
+
+    const orders = await Order.aggregate(pipeline);
+
+    res.status(200).json({
+      orders,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / limit),
+      totalOrders: total,
+    });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const getOrderById = async(req, res)=>{
     try {
-        const orders = await Order.find({transactionStatus: 'completed'}).populate('vendor', 'firstName lastName').populate('user', 'firstName lastName').populate('product', 'name category');
-
-        const formattedOrders = orders.map(order => ({
-            type: 'Sales',
-            id: order._id,
-            item: order.product.name,
-            date: new Date(order.createdAt).toLocaleDateString('en-GB'),
-            seller:`${order.vendor.firstName} ${order.vendor.lastName}`,
-            buyer:`${order.user.firstName} ${order.user.lastName}`,
-            amount: order.totalAmount,
-            category: order.product.category,
-            status: order.transactionStatus,
-            price: order.totalAmount
-        })).sort((a,b)=>b.date - a.date)
-
-        res.status(200).json({message: 'Orders Fetched Successfully', data: formattedOrders})
+        const {id} = req.params
+    
+        const order = await Order.findById(id)
+          .populate("vendor", "firstName lastName")
+          .populate("user", "firstName lastName deliveryAddress")
+          .populate("product", "name images shippingAddress")
+    
+        if(!order) return res.status(400).json({message: 'Order Not Found'})
+    
+        return res.status(200).json(order)
     } catch (error) {
-        res.status(500).json({message: "Internal Server Error"})
+        console.log(error)
+        return res.status(500).json({message: "internal Server Error"})
     }
 }
 
