@@ -15,6 +15,8 @@ router.post('/create', createAdmin)
 
 router.get('/analytics', getDashboardAnalytics)
 
+router.get('/transactions/analytics', getTransactionAnalytics)
+
 router.get('/transactions', getLatestTransactions)
 
 router.get('/listings/analytics', getListingAnalytics)
@@ -34,8 +36,6 @@ router.get('/orders/analytics', getOrderAnalytics)
 router.get('/orders', getOrders)
 
 router.get('/orders/:id', getOrderById)
-
-router.get('/transactions/analytics', getTransactionAnalytics)
 
 router.get('/users/analytics', getUserAnalytics)
 

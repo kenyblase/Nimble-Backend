@@ -1,7 +1,8 @@
 import Chat from "../models/chatModel.js";
 import Message from "../models/messageModel.js";
+import Setting from "../models/generalSettingsModel.js";
+import Admin from "../models/adminModel.js";
 
-// ✅ Get all chats for logged-in user
 export const getChats = async (req, res) => {
   try {
     const userId = req.userId;
@@ -18,7 +19,6 @@ export const getChats = async (req, res) => {
   }
 };
 
-// ✅ Get single chat + messages
 export const getChatById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -34,7 +34,6 @@ export const getChatById = async (req, res) => {
   }
 };
 
-// ✅ Create or fetch chat between buyer and seller
 export const createChat = async (req, res) => {
   try {
     const { buyer, seller, product } = req.body;
@@ -48,7 +47,6 @@ export const createChat = async (req, res) => {
   }
 };
 
-// ✅ Report a chat
 export const reportChat = async (req, res) => {
   try {
     const { id } = req.params;
@@ -66,7 +64,35 @@ export const reportChat = async (req, res) => {
       { new: true }
     );
 
-    res.json({ success: true, data: chat });
+    if (!chat) return res.status(404).json({ success: false, message: "Chat not found" });
+
+    const adminRolesSetting = await Setting.findOne({ key: "admin_roles" });
+
+    if (!adminRolesSetting)
+      return res.status(404).json({ success: false, message: "Admin roles setting not found" });
+
+    const rolesWithPermission = adminRolesSetting.value
+      .filter((r) => r.permissions.includes("mediate_chat"))
+      .map((r) => r.role);
+
+    const mediatingAdmins = await Admin.find({ role: { $in: rolesWithPermission } }, "_id");
+
+    if (!mediatingAdmins.length)
+      return res.status(200).json({
+        success: true,
+        message: "Chat reported, but no mediating admins found.",
+        data: chat,
+      });
+
+    chat.adminInvolved = [...new Set([...chat.adminInvolved.map(String), ...mediatingAdmins.map(a => a._id.toString())])];
+
+    await chat.save();
+
+    res.json({
+      success: true,
+      message: "Chat reported and mediating admins assigned.",
+      data: chat,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

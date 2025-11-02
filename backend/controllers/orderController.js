@@ -9,8 +9,9 @@ import { sendOrderCanceledEmail, sendOrderConfirmationEmail, sendOrderDeliveredE
 
 export const createOrderWithBalance = async (req, res) => {
   const userId = req.userId;
-  const { vendorId, productId, quantity, price } = req.body;
+  const { vendorId, productId, quantity, price, deliveryAddress } = req.body;
 
+  if (!deliveryAddress) return res.status(400).json({ message: "Default Delivery Address Required" });
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -29,23 +30,12 @@ export const createOrderWithBalance = async (req, res) => {
       return res.status(400).json({ message: "Insufficient balance" });
     }
 
-    const defaultDeliveryAddress = user.deliveryAddress.find(a => a.isDefault);
-
-    if (!defaultDeliveryAddress) return res.status(400).json({ message: "Default Delivery Address Not Set" });
 
     const vendor = await User.findById(vendorId).session(session);
     if (!vendor) {
       return res.status(400).json({ message: "Vendor not found" });
     }
 
-    // Update balances
-    user.balance -= totalAmount;
-    vendor.pendingBalance += totalAmount;
-
-    await user.save({ session });
-    await vendor.save({ session });
-
-    // Create new order
     const commissionAmount = product.category?.commissionPercentage
       ? Number(
           (
@@ -54,6 +44,13 @@ export const createOrderWithBalance = async (req, res) => {
           ).toFixed(2)
         )
       : 0;
+
+    user.balance -= totalAmount;
+    vendor.pendingBalance += totalAmount - commissionAmount;
+
+    await user.save({ session });
+    await vendor.save({ session });
+
 
     const newOrder = await Order.create(
       [
@@ -67,7 +64,7 @@ export const createOrderWithBalance = async (req, res) => {
           commissionAmount,
           paymentStatus: "paid",
           paymentMethod: "balance",
-          deliveryAddress: defaultDeliveryAddress
+          deliveryAddress
         },
       ],
       { session }
@@ -77,8 +74,9 @@ export const createOrderWithBalance = async (req, res) => {
     await Transaction.create(
       [
         {
-          user: userId,
-          type: "payment",
+          user: vendorId,
+          buyer: userId,
+          type: "sales",
           amount: totalAmount,
           reference: newOrder[0]._id,
           status: "successful",
@@ -147,15 +145,13 @@ export const createOrderWithBalance = async (req, res) => {
 
 export const createOrderWithPaystack = async (req, res) => {
   const userId = req.userId;
-  const { vendorId, productId, quantity, price } = req.body;
+  const { vendorId, productId, quantity, price, deliveryAddress } = req.body;
+
+  if (!deliveryAddress) return res.status(400).json({ message: "Default Delivery Address Required" });
 
   try {
     const user = await User.findById(userId);
     if (!user) return res.status(400).json({ message: "User not found" });
-
-    const defaultDeliveryAddress = user.deliveryAddress.find(a => a.isDefault);
-
-    if (!defaultDeliveryAddress) return res.status(400).json({ message: "Default Delivery Address Not Set" });
 
     const vendor = await User.findById(vendorId);
     if (!vendor) return res.status(400).json({ message: "Vendor not found" });
@@ -187,7 +183,7 @@ export const createOrderWithPaystack = async (req, res) => {
       commissionAmount,
       paymentStatus: "pending",
       paymentMethod: "payment-gateway",
-      deliveryAddress: defaultDeliveryAddress
+      deliveryAddress
     });
 
     const paystackResponse = await axios.post(
@@ -211,7 +207,7 @@ export const createOrderWithPaystack = async (req, res) => {
     return res.status(201).json({
       message: "Order created successfully. Complete payment to confirm.",
       order: newOrder,
-      payment_url: paystackResponse.data.data.authorization_url,
+      paymentUrl: paystackResponse.data.data.authorization_url,
     });
   } catch (error) {
     console.error("createOrderWithPaystack error:", error.response?.data || error);
@@ -265,8 +261,9 @@ export const verifyPaystackPayment = async (req, res) => {
       await Transaction.create(
         [
           {
-            user: order.user,
-            type: "payment",
+            user: order.vendor,
+            buyer: order.user,
+            type: "sales",
             amount: order.totalAmount,
             reference,
             status: "successful",
@@ -276,7 +273,7 @@ export const verifyPaystackPayment = async (req, res) => {
       );
     }
 
-    vendor.pendingBalance += order.totalAmount;
+    vendor.pendingBalance += order.totalAmount - order.commissionAmount;
     await vendor.save({ session });
 
     order.paymentStatus = "paid";

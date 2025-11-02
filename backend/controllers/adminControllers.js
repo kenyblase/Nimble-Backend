@@ -648,7 +648,7 @@ export const getOrderById = async(req, res)=>{
     
         const order = await Order.findById(id)
           .populate("vendor", "firstName lastName")
-          .populate("user", "firstName lastName deliveryAddress")
+          .populate("user", "firstName lastName")
           .populate("product", "name images shippingAddress")
     
         if(!order) return res.status(400).json({message: 'Order Not Found'})
@@ -881,23 +881,103 @@ export const deleteAdmin = async(req, res)=>{
     }
 }
 
-export const getTransactionAnalytics = async(req, res)=>{
-    try {
-        let totalPayInAmount = 0
-        let totalPayOutAmount = 0
+export const getTransactionAnalytics = async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+    const endOfToday = new Date(today.setHours(23, 59, 59, 999));
 
-        const completedTransactions = await Transaction.find({status: 'successful'})
-        const completedWithdrawals = await Withdrawal.find({status: 'SUCCESS'})
+    const yesterday = new Date(startOfToday);
+    yesterday.setDate(startOfToday.getDate() - 1);
+    const startOfYesterday = new Date(yesterday.setHours(0, 0, 0, 0));
+    const endOfYesterday = new Date(yesterday.setHours(23, 59, 59, 999));
 
-        totalPayInAmount += completedTransactions.reduce((sum, payment) => sum + payment.amount, 0);
+    const calcChange = (current, prev) => {
+      if (!prev || prev === 0) return 0;
+      return ((current - prev) / prev) * 100;
+    };
 
-        totalPayOutAmount += completedWithdrawals.reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
+    // --- PAY-IN ---
+    // Includes: Deposits (successful) + Sales (orders not paid with balance)
+    const [todayDeposits, yesterdayDeposits] = await Promise.all([
+      Transaction.find({
+        type: "deposit",
+        status: "successful",
+        createdAt: { $gte: startOfToday, $lte: endOfToday },
+      }),
+      Transaction.find({
+        type: "deposit",
+        status: "successful",
+        createdAt: { $gte: startOfYesterday, $lte: endOfYesterday },
+      }),
+    ]);
 
-        res.status(200).json({message: 'Transaction Analytics fetched successfully', data: {totalPayInAmount, totalPayOutAmount}})
-    } catch (error) {
-        res.status(500).json({message: 'Internal Server Error'})
-    }
-}
+    const [todaySales, yesterdaySales] = await Promise.all([
+      Order.find({
+        paymentStatus: "paid",
+        paymentMethod: { $ne: "balance" },
+        createdAt: { $gte: startOfToday, $lte: endOfToday },
+      }),
+      Order.find({
+        paymentStatus: "paid",
+        paymentMethod: { $ne: "balance" },
+        createdAt: { $gte: startOfYesterday, $lte: endOfYesterday },
+      }),
+    ]);
+
+    const todayPayIn =
+      todayDeposits.reduce((a, c) => a + c.amount, 0) +
+      todaySales.reduce((a, c) => a + c.totalAmount, 0);
+
+    const yesterdayPayIn =
+      yesterdayDeposits.reduce((a, c) => a + c.amount, 0) +
+      yesterdaySales.reduce((a, c) => a + c.totalAmount, 0);
+
+    // --- PAY-OUT ---
+    const [todayWithdrawals, yesterdayWithdrawals] = await Promise.all([
+      Transaction.find({
+        type: "withdrawal",
+        status: "successful",
+        createdAt: { $gte: startOfToday, $lte: endOfToday },
+      }),
+      Transaction.find({
+        type: "withdrawal",
+        status: "successful",
+        createdAt: { $gte: startOfYesterday, $lte: endOfYesterday },
+      }),
+    ]);
+
+    const todayPayOut = todayWithdrawals.reduce((a, c) => a + c.amount, 0);
+    const yesterdayPayOut = yesterdayWithdrawals.reduce((a, c) => a + c.amount, 0);
+
+    // --- Calculate percentage change ---
+    const payInChange = calcChange(todayPayIn, yesterdayPayIn);
+    const payOutChange = calcChange(todayPayOut, yesterdayPayOut);
+
+    // --- Response ---
+    return res.status(200).json({
+      success: true,
+      message: "Transaction analytics fetched successfully",
+      data: {
+        payIn: {
+          value: todayPayIn,
+          change: payInChange.toFixed(1),
+          trend: payInChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+        payOut: {
+          value: todayPayOut,
+          change: payOutChange.toFixed(1),
+          trend: payOutChange >= 0 ? "up" : "down",
+          duration: "from yesterday",
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Transaction Analytics Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 
 export const blockUser = async(req, res)=>{
     const { userToBlockId } = req.body

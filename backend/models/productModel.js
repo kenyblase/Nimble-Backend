@@ -43,6 +43,9 @@ const productSchema = new mongoose.Schema({
         phoneNumber: {
             type: Number
         },
+        address: {
+            type: String
+        },
         city: {
             type: String
         },
