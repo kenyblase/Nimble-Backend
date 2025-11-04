@@ -143,56 +143,43 @@ export const createOrderWithBalance = async (req, res) => {
   }
 };
 
-export const createOrderWithPaystack = async (req, res) => {
+export const initializePaystackPayment = async (req, res) => {
   const userId = req.userId;
-  const { vendorId, productId, quantity, price, deliveryAddress } = req.body;
+  const { vendorId, productId, quantity, price, deliveryFee, deliveryAddress } = req.body;
 
-  if (!deliveryAddress) return res.status(400).json({ message: "Default Delivery Address Required" });
+  if (!deliveryAddress)
+    return res.status(400).json({ message: "Delivery address required" });
 
   try {
     const user = await User.findById(userId);
-    if (!user) return res.status(400).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-    const vendor = await User.findById(vendorId);
-    if (!vendor) return res.status(400).json({ message: "Vendor not found" });
-
-    const product = await Product.findById(productId).populate(
-      "category",
-      "commissionPercentage"
-    );
-    if (!product)
-      return res.status(404).json({ message: "Product not found" });
+    const product = await Product.findById(productId).populate("category", "commissionPercentage");
+    if (!product) return res.status(404).json({ message: "Product not found" });
 
     const totalAmount = price * quantity;
     const commissionAmount = product.category?.commissionPercentage
-      ? Number(
-          (
-            totalAmount *
-            (product.category.commissionPercentage / 100)
-          ).toFixed(2)
-        )
+      ? Number(((totalAmount * product.category.commissionPercentage) / 100).toFixed(2))
       : 0;
 
-    const newOrder = new Order({
-      user: userId,
-      vendor: vendorId,
-      product: productId,
-      price,
-      quantity,
-      totalAmount,
-      commissionAmount,
-      paymentStatus: "pending",
-      paymentMethod: "payment-gateway",
-      deliveryAddress
-    });
-
+    // Initialize Paystack payment
     const paystackResponse = await axios.post(
       "https://api.paystack.co/transaction/initialize",
       {
         email: user.email,
         amount: totalAmount * 100,
-        reference: newOrder._id.toString(),
         callback_url: process.env.PAYSTACK_CALLBACK_URL,
+        metadata: {
+          userId,
+          vendorId,
+          productId,
+          quantity,
+          price,
+          deliveryFee,
+          deliveryAddress,
+          totalAmount,
+          commissionAmount,
+        },
       },
       {
         headers: {
@@ -202,15 +189,13 @@ export const createOrderWithPaystack = async (req, res) => {
       }
     );
 
-    await newOrder.save();
-
-    return res.status(201).json({
-      message: "Order created successfully. Complete payment to confirm.",
-      order: newOrder,
+    return res.status(200).json({
+      message: "Payment initialized successfully",
       paymentUrl: paystackResponse.data.data.authorization_url,
+      reference: paystackResponse.data.data.reference,
     });
   } catch (error) {
-    console.error("createOrderWithPaystack error:", error.response?.data || error);
+    console.error("initializePaystackPayment error:", error.response?.data || error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -221,6 +206,7 @@ export const verifyPaystackPayment = async (req, res) => {
   session.startTransaction();
 
   try {
+    // Verify payment
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
       {
@@ -230,76 +216,99 @@ export const verifyPaystackPayment = async (req, res) => {
       }
     );
 
-    const order = await Order.findById(reference).session(session);
-    if (!order)
-      return res.status(400).json({ message: "Order not found" });
+    const data = response.data.data;
 
-    if (order.paymentStatus === "paid") {
-      return res.status(200).json({ message: "Payment already processed." });
-    }
-
-    if (response.data.data.status !== "success") {
-      order.paymentStatus = "failed";
-      await order.save({ session });
-      await session.commitTransaction();
+    if (data.status !== "success") {
+      await session.abortTransaction();
       session.endSession();
-      return res
-        .status(400)
-        .json({ message: "Payment verification failed", order });
+      return res.status(400).json({ message: "Payment verification failed" });
     }
 
-    const vendor = await User.findById(order.vendor).session(session);
-    const user = await User.findById(order.user).session(session);
-    const product = await Product.findById(order.product).session(session);
+    // Extract order info from metadata
+    const {
+      userId,
+      vendorId,
+      productId,
+      quantity,
+      price,
+      deliveryFee,
+      deliveryAddress,
+      totalAmount,
+      commissionAmount,
+    } = data.metadata;
 
-    if (!vendor || !user || !product) {
-      return res.status(400).json({ message: "Related data not found" });
-    }
+    const vendor = await User.findById(vendorId).session(session);
+    const user = await User.findById(userId).session(session);
+    const product = await Product.findById(productId).session(session);
 
+    if (!vendor || !user || !product)
+      return res.status(400).json({ message: "Invalid metadata" });
+
+    // Check if transaction already exists
     const existingTransaction = await Transaction.findOne({ reference }).session(session);
-    if (!existingTransaction) {
-      await Transaction.create(
-        [
-          {
-            user: order.vendor,
-            buyer: order.user,
-            type: "sales",
-            amount: order.totalAmount,
-            reference,
-            status: "successful",
-          },
-        ],
-        { session }
-      );
+    if (existingTransaction) {
+      return res.status(200).json({ message: "Payment already processed" });
     }
 
-    vendor.pendingBalance += order.totalAmount - order.commissionAmount;
-    await vendor.save({ session });
+    // ✅ Create order after payment success
+    const newOrder = await Order.create(
+      [
+        {
+          user: userId,
+          vendor: vendorId,
+          product: productId,
+          price,
+          quantity,
+          totalAmount,
+          commissionAmount,
+          paymentStatus: "paid",
+          paymentMethod: "payment-gateway",
+          deliveryFee,
+          deliveryAddress,
+        },
+      ],
+      { session }
+    );
 
-    order.paymentStatus = "paid";
-    await order.save({ session });
+    // Record transaction
+    await Transaction.create(
+      [
+        {
+          user: vendorId,
+          buyer: userId,
+          type: "sales",
+          amount: totalAmount,
+          reference,
+          status: "successful",
+        },
+      ],
+      { session }
+    );
+
+    // Update vendor balance
+    vendor.pendingBalance += totalAmount - commissionAmount;
+    await vendor.save({ session });
 
     await session.commitTransaction();
     session.endSession();
 
-    // Notifications & Emails
     if (user.AppNotificationSettings.includes("ORDERS")) {
       await Notification.create({
-        userId: order.user,
+        userId: newOrder[0].user,
         title: "Order Created Successfully",
         message: `You have successfully placed an order.`,
         notificationType: "ORDERS",
-        metadata: { orderId: order._id },
+        metadata: { orderId: newOrder[0]._id },
       });
     }
 
     if (vendor.AppNotificationSettings.includes("ORDERS")) {
       await Notification.create({
-        userId: order.vendor,
+        userId: newOrder[0].vendor,
         title: "Order Received",
         message: `You've received an order from ${user.firstName} ${user.lastName}.`,
         notificationType: "ORDERS",
-        metadata: { orderId: order._id },
+        metadata: { orderId: newOrder[0]._id },
       });
     }
 
@@ -308,8 +317,8 @@ export const verifyPaystackPayment = async (req, res) => {
         user.email,
         user.firstName,
         user.lastName,
-        order._id,
-        order.totalAmount
+        newOrder[0]._id,
+        newOrder[0].totalAmount
       );
     }
 
@@ -319,16 +328,17 @@ export const verifyPaystackPayment = async (req, res) => {
         vendor.firstName,
         vendor.lastName,
         product.name,
-        order.quantity,
-        order.price,
+        newOrder[0].quantity,
+        newOrder[0].price,
         user.firstName,
         user.lastName
       );
     }
 
-    return res
-      .status(200)
-      .json({ message: "Payment successful, order confirmed." });
+    return res.status(200).json({
+      message: "Payment successful, order created.",
+      order: newOrder[0],
+    });
   } catch (error) {
     await session.abortTransaction();
     session.endSession();

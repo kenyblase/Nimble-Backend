@@ -1,12 +1,12 @@
 import express from 'express';
-import { createOrderWithBalance, createOrderWithPaystack, getOrderById, getOrdersByUser, getOrdersByVendor, updateOrderStatus, updateTransactionStatus, verifyPaystackPayment } from '../controllers/orderController.js';
+import { createOrderWithBalance, getOrderById, getOrdersByUser, getOrdersByVendor, initializePaystackPayment, updateOrderStatus, updateTransactionStatus, verifyPaystackPayment } from '../controllers/orderController.js';
 import { verifyToken } from '../middleware/verifyToken.js';
 
 const router = express.Router();
 
 router.post('/create/balance', verifyToken, createOrderWithBalance);
 
-router.post('/create/paystack', verifyToken, createOrderWithPaystack);
+router.post('/create/paystack', verifyToken, initializePaystackPayment);
 
 router.get('/verify/paystack', verifyToken, verifyPaystackPayment);
 

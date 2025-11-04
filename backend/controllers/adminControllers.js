@@ -12,6 +12,7 @@ import {generateTokenAndSetCookie} from '../utils/generateTokenAndSetCookie.js'
 import cloudinary from '../utils/cloudinary.js'
 import Category from "../models/categoryModel.js"
 import Setting from "../models/generalSettingsModel.js";
+import Notification from '../models/notificationModel.js';
 
 export const createAdmin = async (req, res) => {
     const {firstName, lastName, email, phone, password, role} = req.body
@@ -649,7 +650,7 @@ export const getOrderById = async(req, res)=>{
         const order = await Order.findById(id)
           .populate("vendor", "firstName lastName")
           .populate("user", "firstName lastName")
-          .populate("product", "name images shippingAddress")
+          .populate("product", "name images price shippingAddress")
     
         if(!order) return res.status(400).json({message: 'Order Not Found'})
     
@@ -659,6 +660,184 @@ export const getOrderById = async(req, res)=>{
         return res.status(500).json({message: "internal Server Error"})
     }
 }
+
+export const cancelOrder = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findById(id).session(session);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    if (order.transactionStatus === "completed" && order.orderStatus === "delivered")
+      return res.status(400).json({ message: "Cannot cancel a completed order" });
+
+    if (order.orderStatus === "cancelled" && order.transactionStatus === 'failed')
+      return res.status(400).json({ message: "Order already cancelled" });
+
+    const vendor = await User.findById(order.vendor).session(session);
+    if (!vendor) return res.status(404).json({ message: "Vendor not found" });
+
+    const user = await User.findById(order.user).session(session);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const vendorEarnings = order.totalAmount - order.commissionAmount;
+
+    if (vendor.pendingBalance < vendorEarnings) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: "Vendor pending balance insufficient to reverse" });
+    }
+
+    vendor.pendingBalance -= vendorEarnings;
+    user.availableBalance += vendorEarnings;
+
+    await vendor.save({ session });
+    await user.save({ session });
+
+    // --- Update Order ---
+    order.orderStatus = "cancelled";
+    order.transactionStatus = "failed";
+    order.paymentStatus = "refunded";
+    await order.save({ session });
+
+    // --- Record Transaction ---
+    await Transaction.create(
+      [
+        {
+          user: user._id,
+          type: "sales",
+          amount: order.totalAmount,
+          reference: `CANCEL-${order._id}`,
+          status: "successful",
+          metadata: { orderId: order._id, vendorId: vendor._id },
+        },
+      ],
+      { session }
+    );
+
+    // --- Notifications ---
+    await Notification.create(
+      [
+        {
+          userId: order.user,
+          title: "Order Cancelled by Admin",
+          message: `Your order with ID ${order._id} has been cancelled by an admin.`,
+          notificationType: "ORDERS",
+          metadata: { orderId: order._id },
+        },
+        {
+          userId: order.vendor,
+          title: "Order Cancelled",
+          message: `Your order with ID ${order._id} was cancelled by admin. Pending balance adjusted.`,
+          notificationType: "ORDERS",
+          metadata: { orderId: order._id },
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      message: "Order cancelled successfully and balances adjusted.",
+      order,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("adminCancelOrder error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const markOrderCompleted = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findById(id).session(session);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    if (order.transactionStatus === "completed" && order.orderStatus === "delivered")
+      return res.status(400).json({ message: "Order already completed" });
+
+    if (order.orderStatus === "cancelled" && order.transactionStatus === 'failed')
+      return res.status(400).json({ message: "Cannot complete a cancelled order" });
+
+    const vendor = await User.findById(order.vendor).session(session);
+    if (!vendor) return res.status(404).json({ message: "Vendor not found" });
+
+    const vendorEarnings = order.totalAmount - order.commissionAmount;
+
+    if (vendor.pendingBalance < vendorEarnings) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: "Vendor pending balance insufficient" });
+    }
+
+    vendor.pendingBalance -= vendorEarnings;
+    vendor.availableBalance += vendorEarnings;
+    await vendor.save({ session });
+
+    order.orderStatus = "delivered";
+    order.transactionStatus = 'completed'
+    await order.save({ session });
+
+    await Transaction.create(
+      [
+        {
+          user: vendor._id,
+          type: "sales",
+          amount: vendorEarnings,
+          reference: `COMPLETE-${order._id}`,
+          status: "successful",
+          metadata: { orderId: order._id },
+        },
+      ],
+      { session }
+    );
+
+    // --- Notify Users ---
+    await Notification.create(
+      [
+        {
+          userId: order.user,
+          title: "Order Completed",
+          message: `Your order with ID ${order._id} has been marked as completed by an admin.`,
+          notificationType: "ORDERS",
+          metadata: { orderId: order._id },
+        },
+        {
+          userId: order.vendor,
+          title: "Order Completed",
+          message: `Your order with ID ${order._id} has been marked as completed by an admin. Funds released to your available balance.`,
+          notificationType: "ORDERS",
+          metadata: { orderId: order._id },
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(200).json({
+      message: "Order marked as completed successfully, balances updated.",
+      order,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("markOrderCompleted error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 export const getUserAnalytics = async (req, res) => {
   try {
