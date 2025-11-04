@@ -5,6 +5,7 @@ const chatSchema = new mongoose.Schema({
   seller: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
   lastMessage: String,
+  lastMessageSentAt: Date,
   unreadCount: { type: Number, default: 0 },
 
   isReported: { type: Boolean, default: false },

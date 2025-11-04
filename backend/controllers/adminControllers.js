@@ -1867,7 +1867,7 @@ export const upsertSetting = async (req, res) => {
     const updatedSetting = await Setting.findOneAndUpdate(
       { key },
       {
-        $set: { value, updatedBy: req.admin._id, updatedAt: Date.now() },
+        $set: { value, updatedBy: req.userId, updatedAt: Date.now() },
         $setOnInsert: { key },
       },
       { upsert: true, new: true }

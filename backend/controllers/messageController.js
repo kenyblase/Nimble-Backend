@@ -36,6 +36,7 @@ export const sendMessage = async (req, res) => {
     });
 
     chat.lastMessage = text || type;
+    chat.lastMessageSentAt = Date.now()
     await chat.save();
 
     const receiverId = user._id.toString() === chat.buyer.toString() ? chat.seller.toString() : chat.buyer.toString();

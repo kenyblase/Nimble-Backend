@@ -10,8 +10,10 @@ export const getChats = async (req, res) => {
     const chats = await Chat.find({
       $or: [{ buyer: userId }, { seller: userId }, { adminInvolved: userId }]
     })
-      .populate("buyer seller product")
-      .sort({ updatedAt: -1 });
+      .populate("buyer", "firstName lastName profilePic")
+      .populate("seller", "firstName lastName profilePic")
+      .populate("product", "name")
+      .sort({ lastMessageSentAt: -1 });
 
     res.json({ success: true, data: chats });
   } catch (err) {

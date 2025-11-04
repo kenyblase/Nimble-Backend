@@ -17,10 +17,10 @@ const router = express.Router();
 router.use(verifyToken);
 
 // 🔹 Chats
-router.get("/chats", getChats);
-router.get("/chats/:id", getChatById);
-router.post("/chats", createChat);
-router.post("/chats/:id/report", reportChat);
+router.get("/", getChats);
+router.get("/:id", getChatById);
+router.post("/", createChat);
+router.post("/:id/report", reportChat);
 
 // 🔹 Messages
 router.get("/messages/:chatId", getMessages);
