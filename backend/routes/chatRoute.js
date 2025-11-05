@@ -27,6 +27,6 @@ router.get("/messages/:chatId", getMessages);
 router.post("/messages", sendMessage);
 
 // 🔹 Admin Moderation
-router.post("/admin/chats/:id/message", adminSendMessage);
+router.post("/admin/:id/message", adminSendMessage);
 
 export default router;

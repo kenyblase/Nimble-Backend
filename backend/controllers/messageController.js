@@ -16,7 +16,7 @@ export const sendMessage = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    if (chat.buyer !== userId && chat.seller !== userId) {
+    if (chat.buyer._id.toString() !== userId.toString() && chat.seller._id.toString() !== userId.toString()) {
       return res.status(403).json({ message: "You are not authorized to message this chat" });
     }
 
@@ -119,7 +119,7 @@ export const adminSendMessage = async (req, res) => {
     const participants = [chat.buyer.toString(), chat.seller.toString()];
     participants.forEach((id) => {
       const socketId = getReceiverSocketId(id);
-      if (socketId) io.to(socketId).emit("newAdminMessage", message);
+      if (socketId) io.to(socketId).emit("newMessage", message);
     });
 
     res.status(201).json({ success: true, data: message });

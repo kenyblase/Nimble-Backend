@@ -19,7 +19,7 @@ const messageSchema = new mongoose.Schema({
 
   offer: {
     amount: Number,
-    status: { type: String, enum: ["sent", "accepted", "declined", "counter"], default: "sent" },
+    status: { type: String, enum: ["sent", "accepted", "declined", "counter"]},
     proposedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
   },
 

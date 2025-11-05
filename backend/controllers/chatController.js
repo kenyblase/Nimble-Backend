@@ -2,6 +2,7 @@ import Chat from "../models/chatModel.js";
 import Message from "../models/messageModel.js";
 import Setting from "../models/generalSettingsModel.js";
 import Admin from "../models/adminModel.js";
+import { getReceiverSocketId, io } from "../utils/socket.js";
 
 export const getChats = async (req, res) => {
   try {
@@ -42,6 +43,13 @@ export const createChat = async (req, res) => {
 
     let chat = await Chat.findOne({ buyer, seller, product });
     if (!chat) chat = await Chat.create({ buyer, seller, product });
+
+    const receiverId = req.userId.toString() === buyer.toString() ? seller.toString() : buyer.toString();
+    const receiverSocketId = getReceiverSocketId(receiverId);
+
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("newChat", chat);
+    }
 
     res.status(201).json({ success: true, data: chat });
   } catch (err) {
