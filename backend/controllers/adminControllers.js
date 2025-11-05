@@ -685,13 +685,6 @@ export const cancelOrder = async (req, res) => {
 
     const vendorEarnings = order.totalAmount - order.commissionAmount;
 
-    if (vendor.pendingBalance < vendorEarnings) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ message: "Vendor pending balance insufficient to reverse" });
-    }
-
-    vendor.pendingBalance -= vendorEarnings;
     user.availableBalance += vendorEarnings;
 
     await vendor.save({ session });
@@ -775,13 +768,6 @@ export const markOrderCompleted = async (req, res) => {
 
     const vendorEarnings = order.totalAmount - order.commissionAmount;
 
-    if (vendor.pendingBalance < vendorEarnings) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ message: "Vendor pending balance insufficient" });
-    }
-
-    vendor.pendingBalance -= vendorEarnings;
     vendor.availableBalance += vendorEarnings;
     await vendor.save({ session });
 

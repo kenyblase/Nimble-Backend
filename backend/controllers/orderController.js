@@ -46,10 +46,8 @@ export const createOrderWithBalance = async (req, res) => {
       : 0;
 
     user.balance -= totalAmount;
-    vendor.pendingBalance += totalAmount - commissionAmount;
 
     await user.save({ session });
-    await vendor.save({ session });
 
 
     const newOrder = await Order.create(
@@ -285,10 +283,6 @@ export const verifyPaystackPayment = async (req, res) => {
       { session }
     );
 
-    // Update vendor balance
-    vendor.pendingBalance += totalAmount - commissionAmount;
-    await vendor.save({ session });
-
     await session.commitTransaction();
     session.endSession();
 
@@ -503,7 +497,6 @@ export const updateTransactionStatus = async (req, res) => {
         if(!vendor) return res.status(400).json({message: "User not found"})
 
         if(transactionStatus === 'completed'){
-            vendor.pendingBalance -= order.totalAmount
             vendor.balance += order.totalAmount
 
             await vendor.save()
