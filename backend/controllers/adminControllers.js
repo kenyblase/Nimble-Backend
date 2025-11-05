@@ -13,6 +13,7 @@ import cloudinary from '../utils/cloudinary.js'
 import Category from "../models/categoryModel.js"
 import Setting from "../models/generalSettingsModel.js";
 import Notification from '../models/notificationModel.js';
+import Appeal from '../models/appealModel.js';
 
 export const createAdmin = async (req, res) => {
     const {firstName, lastName, email, phone, password, role} = req.body
@@ -1881,5 +1882,117 @@ export const getSettingByKey = async (req, res) => {
     res.status(200).json({ success: true, data: setting });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getAppeals = async (req, res) => {
+  try {
+    const {
+      type,
+      search = "",
+      status,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    const skip = (page - 1) * limit;
+
+    const matchConditions = {};
+    if (type) matchConditions.type = type;
+    if (status !== 'all') matchConditions.status = status;
+
+    const searchCondition = search
+      ? {
+          $or: [
+            { subject: { $regex: search, $options: "i" } },
+            { "user.firstName": { $regex: search, $options: "i" } },
+            { "user.lastName": { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const pipeline = [
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "admins",
+          localField: "resolvedBy",
+          foreignField: "_id",
+          as: "resolvedBy",
+        },
+      },
+      { $unwind: { path: "$resolvedBy", preserveNullAndEmptyArrays: true } },
+      {
+        $match: {
+          ...matchConditions,
+          ...searchCondition,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: parseInt(limit) },
+      {
+        $project: {
+          _id: 1,
+          subject: 1,
+          category: 1,
+          description: 1,
+          status: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          "user._id": 1,
+          "user.firstName": 1,
+          "user.lastName": 1,
+          "user.email": 1,
+          "resolvedBy._id": 1,
+          "resolvedBy.firstName": 1,
+          "resolvedBy.lastName": 1,
+          resolutionNote: 1,
+        },
+      },
+    ];
+
+    const appeals = await Appeal.aggregate(pipeline);
+
+    // Count pipeline (simplified)
+    const countPipeline = [
+      {
+        $lookup: {
+          from: "users",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+      {
+        $match: {
+          ...matchConditions,
+          ...searchCondition,
+        },
+      },
+      { $count: "total" },
+    ];
+
+    const totalResult = await Appeal.aggregate(countPipeline);
+    const total = totalResult[0]?.total || 0;
+
+    res.status(200).json({
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / limit),
+      appeals,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to fetch appeals" });
   }
 };

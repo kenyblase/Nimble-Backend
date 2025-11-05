@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser'
 import {connectdb} from './db/connectdb.js'
 import authRoutes from './routes/authRoute.js'
 import adminRoutes from './routes/adminRoute.js'
+import appealRoutes from './routes/appealRoute.js'
 import chatRoutes from './routes/chatRoute.js'
 import productRoutes from './routes/productRoute.js'
 import requestRoutes from "./routes/requestRoute.js";
@@ -40,6 +41,7 @@ app.use(cookieParser())
 
 app.use('/api/auth', authRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/appeals', appealRoutes)
 app.use('/api/chats', chatRoutes)
 app.use('/api/products', productRoutes)
 app.use("/api/requests", requestRoutes);
