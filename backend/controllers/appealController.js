@@ -2,7 +2,7 @@ import Appeal from "../models/appealModel.js";
 
 export const createAppeal = async (req, res) => {
   try {
-    const { type, category, subject, description, attachments } = req.body;
+    const { type, seller, order, category, subject, description, attachments } = req.body;
 
     if (!subject || !description) {
       return res.status(400).json({ message: "Subject and description are required" });
@@ -12,6 +12,8 @@ export const createAppeal = async (req, res) => {
 
     const newAppeal = await Appeal.create({
       user: userId,
+      seller,
+      order,
       type,
       category,
       subject,

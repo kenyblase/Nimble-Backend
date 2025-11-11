@@ -30,7 +30,7 @@ export const signUp = async (req, res) => {
             password: hashedPassword,
             VerificationToken, 
             VerificationTokenExpiresAt: Date.now() + 24 * 60 * 60 * 1000,
-            role: 'USER' 
+            ip: req.clientIp
         })
 
         await user.save()
@@ -175,6 +175,7 @@ export const logIn = async (req, res) => {
         const token = generateTokenAndSetCookie(res, user._id)
 
         user.lastlogin = new Date()
+        user.ip = req.clientIp
         
         await user.save()
 

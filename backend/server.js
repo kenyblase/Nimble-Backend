@@ -1,6 +1,11 @@
 import express from 'express'
+import rateLimit from "express-rate-limit";
 import cookieParser from 'cookie-parser'
+import cors from 'cors'
+import requestIp from "request-ip";
+
 import {connectdb} from './db/connectdb.js'
+
 import authRoutes from './routes/authRoute.js'
 import adminRoutes from './routes/adminRoute.js'
 import appealRoutes from './routes/appealRoute.js'
@@ -14,11 +19,31 @@ import withdrawalRoutes from './routes/withdrawalRoute.js'
 import settingsRoutes from './routes/settingsRoute.js'
 import notificationRoutes from './routes/notificationRoute.js'
 import webhookRoute from './routes/webhookRoute.js'
-import cors from 'cors'
+
 import {app, server} from './utils/socket.js'
+
 import './utils/cron.js'
 
 const PORT = process.env.PORT || 5000
+
+// ✅ Enable trust proxy (needed on Render, Vercel, etc.)
+app.set("trust proxy", 1);
+
+// ✅ Use request-ip middleware
+app.use(requestIp.mw());
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // ⏳ 15 minutes
+  max: 100, // 🚧 limit each IP to 100 requests per window
+  message: {
+    success: false,
+    message: "Too many requests from this IP, please try again later.",
+  },
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false,  // Disable the `X-RateLimit-*` headers
+});
+
+app.use(limiter);
 
 const allowedOrigins = [
     process.env.FRONTEND_URL,

@@ -75,6 +75,9 @@ const userSchema = new mongoose.Schema({
             }
         }
     ],
+    ip:{
+        type:String,
+    },
     lastlogin:{
         type:Date,
         default:Date.now

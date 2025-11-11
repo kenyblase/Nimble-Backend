@@ -1996,3 +1996,49 @@ export const getAppeals = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch appeals" });
   }
 };
+
+export const getAppeal = async(req, res)=>{
+    try {
+        const {id} = req.params
+    
+        const appeal = await Appeal.findById(id)
+          .populate('user', 'firstName lastName')
+          .populate('seller', 'firstName lastName')
+    
+        if(!appeal) return res.status(400).json({message: 'Appeal Not Found'})
+
+    
+        return res.status(200).json(appeal)
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({message: "internal Server Error"})
+    }
+}
+
+export const toggleAppealStatus = async (req, res) => {
+  try {
+    const { id } = req.params;        
+    const { status } = req.body;         
+
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status is required' });
+    }
+
+    const appeal = await Appeal.findById(id);
+    if (!appeal) {
+      return res.status(404).json({ success: false, message: 'Appeal not found' });
+    }
+
+    appeal.status = status;
+    await appeal.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Appeal status changed to ${status}`,
+      data: appeal
+    });
+  } catch (error) {
+    console.error('Error toggling appeal status:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

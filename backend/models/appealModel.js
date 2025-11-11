@@ -7,6 +7,14 @@ const appealSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    seller: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    order: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Order",
+    },
     type: {
       type: String,
       required: true,
