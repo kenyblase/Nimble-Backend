@@ -10,7 +10,7 @@ const messageSchema = new mongoose.Schema({
   },
   type: { 
     type: String, 
-    enum: ["text", "offer", "invoice", "payment", "system"], 
+    enum: ["text", "offer", "invoice", "payment"], 
     default: "text" 
   },
   text: String,
@@ -19,7 +19,8 @@ const messageSchema = new mongoose.Schema({
 
   offer: {
     amount: Number,
-    status: { type: String, enum: ["sent", "accepted", "declined", "counter"]},
+    initialOfferMessageId: { type: mongoose.Schema.Types.ObjectId, ref: "Message" },
+    status: { type: String, enum: ["sent", "accepted", "declined"]},
     proposedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
   },
 

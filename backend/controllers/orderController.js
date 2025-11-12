@@ -5,6 +5,7 @@ import User from '../models/userModel.js'
 import Transaction from '../models/TransactionModel.js'
 import Notification from '../models/notificationModel.js'
 import axios from 'axios'
+import { createChatBetweenBuyerAndSeller} from '../utils/chatHelper.js'
 import { sendOrderCanceledEmail, sendOrderConfirmationEmail, sendOrderDeliveredEmail, sendOrderShippedEmail, sendVendorOrderReceivedEmail } from '../mailTrap/emails.js';
 
 export const createOrderWithBalance = async (req, res) => {
@@ -85,6 +86,8 @@ export const createOrderWithBalance = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    await createChatBetweenBuyerAndSeller(userId, vendorId, productId, newOrder[0]._id);
 
     // Notifications & Emails (outside transaction)
     if (user.AppNotificationSettings.includes("ORDERS")) {
@@ -285,6 +288,8 @@ export const verifyPaystackPayment = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    await createChatBetweenBuyerAndSeller(userId, vendorId, productId,  newOrder[0]._id);
 
     if (user.AppNotificationSettings.includes("ORDERS")) {
       await Notification.create({
