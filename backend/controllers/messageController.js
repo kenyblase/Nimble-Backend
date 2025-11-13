@@ -7,7 +7,7 @@ import Setting from "../models/generalSettingsModel.js";
 
 export const sendMessage = async (req, res) => {
   try {
-    const { chatId, type, text, offer, invoice, payment } = req.body;
+    const { chatId, type, text, offer, invoice, payment, extraCharge } = req.body;
     const userId = req.userId;
 
     const chat = await Chat.findById(chatId);
@@ -33,6 +33,7 @@ export const sendMessage = async (req, res) => {
       offer,
       invoice,
       payment,
+      extraCharge
     });
 
     chat.lastMessage = text || type;

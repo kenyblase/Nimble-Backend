@@ -41,8 +41,14 @@ export const createChat = async (req, res) => {
   try {
     const { buyer, seller, product } = req.body;
 
-    let chat = await Chat.findOne({ buyer, seller, product });
-    if (!chat) chat = await Chat.create({ buyer, seller, product });
+    if (!buyer || !seller || !product) {
+      return res.status(400).json({ success: false, message: "buyer, seller, and product are required" });
+    }
+
+    let chat = await Chat.findOne({ buyer, seller, product, order: null });
+    if (chat) return res.status(200).json({ success: true, data: chat, isNew: false });
+
+    chat = await Chat.create({ buyer, seller, product })
 
     const receiverId = req.userId.toString() === buyer.toString() ? seller.toString() : buyer.toString();
     const receiverSocketId = getReceiverSocketId(receiverId);
@@ -51,7 +57,7 @@ export const createChat = async (req, res) => {
       io.to(receiverSocketId).emit("newChat", chat);
     }
 
-    res.status(201).json({ success: true, data: chat });
+    res.status(201).json({ success: true, data: chat, isNew: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

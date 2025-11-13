@@ -81,7 +81,8 @@ const orderSchema = new mongoose.Schema({
         type: String,
         enum: ['pending', 'paid', 'failed', 'refunded'],
         default: 'pending'
-    }
+    },
+    paidAt: Date
 }, {timestamps: true});
 
 const Order = mongoose.model('Order', orderSchema);

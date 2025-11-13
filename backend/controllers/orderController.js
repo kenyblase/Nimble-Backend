@@ -63,7 +63,8 @@ export const createOrderWithBalance = async (req, res) => {
           commissionAmount,
           paymentStatus: "paid",
           paymentMethod: "balance",
-          deliveryAddress
+          deliveryAddress,
+          paidAt: Date.now()
         },
       ],
       { session }
@@ -266,6 +267,7 @@ export const verifyPaystackPayment = async (req, res) => {
           paymentMethod: "payment-gateway",
           deliveryFee,
           deliveryAddress,
+          paidAt: Date.now()
         },
       ],
       { session }
