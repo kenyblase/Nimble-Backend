@@ -1332,7 +1332,7 @@ export const approveWithdrawal = async (req, res) => {
 
         const transferId = transferResponse.data.data.id;
 
-        withdrawal.status = "PROCESSED";
+        withdrawal.status = "APPROVED";
         withdrawal.transferId = transferId;
         await withdrawal.save();
 
@@ -1396,8 +1396,8 @@ export const rejectWithdrawal = async (req, res) => {
     const { withdrawalId } = req.params;
 
     try {
-        const admin = await User.findById(adminId);
-        if (!admin || admin.role !== "ADMIN") {
+        const admin = await Admin.findById(adminId);
+        if (!admin) {
             return res.status(403).json({ message: "Unauthorized: Admin access required" });
         }
 
@@ -1412,7 +1412,7 @@ export const rejectWithdrawal = async (req, res) => {
         user.balance += withdrawal.amount;
         await user.save();
 
-        withdrawal.status = "FAILED";
+        withdrawal.status = "REJECTED";
         await withdrawal.save();
 
         await Notification.create({
