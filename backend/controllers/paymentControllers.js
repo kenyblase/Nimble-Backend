@@ -7,114 +7,162 @@ import { sendPaymentProcessedEmail } from '../mailTrap/emails.js'
 
 const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY
 
-export const initializePayment = async(req, res)=>{
-    try {
-        const {email, amount, currency="NGN"} = req.body
-        const userId = req.userId
-
-        if(!email || !amount)return res.status(400).json({message: 'Invalid Request'})
-
-        const reference = `txn_${Date.now()}_${Math.random().toString(36).substring(7)}`
-
-        const response = await axios.post('https://api.paystack.co/transaction/initialize', {
-            email,
-            amount: amount * 100,
-            currency,
-            reference,
-            callback_url: process.env.PAYSTACK_CALLBACK_URL
-        },
-    {
-        headers: {
-            Authorization: `Bearer ${paystackSecretKey}`,
-            "Content-Type": "application/json"
-        }
-    })
-
-    const payment = new Payment({
-        user: userId,
-        amount,
-        status: "PENDING",
-        reference,
-        currency,
-        transactionId: reference
-    })
-
-    await payment.save()
-
-    return res.status(200).json({message:response.data.message, data:{
-        paymentData: response.data.data
-    }})    
-    } catch (error) {
-        console.log(error.message)
-        return res.status(500).json({message: error.message})
-    }
-}
-
-export const verifyPayment = async (req, res) => {
+export const initializePayment = async (req, res) => {
   try {
-    const { reference } = req.query;
-    const response = await axios.get(
-      `https://api.paystack.co/transaction/verify/${reference}`,
+    const { email, amount, currency = "NGN" } = req.body;
+    const userId = req.userId;
+
+    if (!email || !amount)
+      return res.status(400).json({ message: "Invalid Request" });
+
+    // Strong reference generator 
+    const reference = `fund_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    const response = await axios.post(
+      "https://api.paystack.co/transaction/initialize",
+      {
+        email,
+        amount: amount * 100,
+        currency,
+        reference,
+        callback_url: process.env.PAYSTACK_CALLBACK_URL,
+        metadata: {
+          isFunding: true,
+          userId,
+          amount,
+        },
+      },
       {
         headers: {
           Authorization: `Bearer ${paystackSecretKey}`,
+          "Content-Type": "application/json",
         },
       }
     );
 
-    const payment = await Payment.findOne({ reference });
-    if (!payment) return res.status(400).json({ message: "Payment not found" });
+    await Payment.create({
+      user: userId,
+      amount,
+      status: "PENDING",
+      reference,
+      currency,
+      transactionId: reference,
+    });
+
+    return res.status(200).json({
+      message: response.data.message,
+      data: {
+        paymentData: response.data.data,
+      },
+    });
+
+  } catch (error) {
+    console.log(error.response?.data || error.message);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const verifyPayment = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { reference } = req.query;
+
+    const response = await axios.get(
+      `https://api.paystack.co/transaction/verify/${reference}`,
+      {
+        headers: { Authorization: `Bearer ${paystackSecretKey}` },
+      }
+    );
+
+    const paystackData = response.data.data;
+
+    const payment = await Payment.findOne({ reference }).session(session);
+    if (!payment) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Payment not found" });
+    }
 
     if (payment.status === "SUCCESS") {
+      await session.commitTransaction();
       return res.status(200).json({ message: "Payment already processed", data: payment });
     }
 
-    if (response.data.data.status !== "success") {
+    if (paystackData.status !== "success") {
       payment.status = "FAILED";
-      await payment.save();
-      return res.status(400).json({message: 'Payment Verification failed', data: payment})
+      await payment.save({ session });
+      await session.commitTransaction();
+      return res.status(400).json({ message: "Payment verification failed" });
     }
 
-      payment.status = "SUCCESS";
-      payment.paymentMethod = response.data.data.channel.toUpperCase();
-      payment.transactionId = response.data.data.id;
+    const user = await User.findById(payment.user).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "User not found" });
+    }
 
-      const user = await User.findById(payment.user);
-      if (!user) {
-        return res.status(400).json({message: "User Not found"})
-      }
-      
-      user.balance += payment.amount;
-      await user.save();
-      await payment.save();
+    // Process wallet funding
+    payment.status = "SUCCESS";
+    payment.paymentMethod = paystackData.channel?.toUpperCase() || "PAYSTACK";
+    payment.transactionId = paystackData.id;
 
-      const existingTransaction = await Transaction.findOne({ reference });
-      if (!existingTransaction) {
-        await Transaction.create({
-          user: user._id,
-          type: "deposit",
-          amount: payment.amount,
-          reference,
-          status: "successful",
-        });
-      }
+    user.balance += payment.amount;
 
-      if(user.AppNotificationSettings.includes('PAYMENTS')){
-        await Notification.create({
-          userId: user._id,
-          title: "Wallet Funded Successfully",
-          message: 'You have successfully funded your wallet balance',
-          notificationType: "PAYMENTS",
-          metadata: {paymentId: payment._id}
-        })
-      }
+    await user.save({ session });
+    await payment.save({ session });
 
-      if(user.EmailNotificationSettings.includes('PAYMENTS')){
-        sendPaymentProcessedEmail(user.email, user.firstName, user.lastName, payment.amount, payment.paymentMethod, payment.transactionId)
-      }
-    return res.status(200).json({ message: response.data.message, data: payment });
+    // Prevent duplicate transaction entry
+    const existingTransaction = await Transaction.findOne({ reference }).session(session);
+    if (!existingTransaction) {
+      await Transaction.create(
+        [
+          {
+            user: user._id,
+            type: "deposit",
+            amount: payment.amount,
+            reference,
+            status: "successful",
+          },
+        ],
+        { session }
+      );
+    }
+
+    await session.commitTransaction();
+
+    // Notifications (outside transaction)
+    if (user.AppNotificationSettings.includes("PAYMENTS")) {
+      await Notification.create({
+        userId: user._id,
+        title: "Wallet Funded Successfully",
+        message: "You have successfully funded your wallet",
+        notificationType: "PAYMENTS",
+        metadata: { paymentId: payment._id },
+      });
+    }
+
+    if (user.EmailNotificationSettings.includes("PAYMENTS")) {
+      sendPaymentProcessedEmail(
+        user.email,
+        user.firstName,
+        user.lastName,
+        payment.amount,
+        payment.paymentMethod,
+        payment.transactionId
+      );
+    }
+
+    return res.status(200).json({
+      message: "Payment processed successfully",
+      data: payment,
+    });
+
   } catch (error) {
-    console.log(error.message);
+    await session.abortTransaction();
+    console.log(error);
     return res.status(500).json({ message: error.message });
+  } finally {
+    session.endSession();
   }
 };

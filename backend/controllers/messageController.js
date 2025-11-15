@@ -73,7 +73,6 @@ export const getMessages = async (req, res) => {
   }
 };
 
-
 export const adminSendMessage = async (req, res) => {
   try {
     const { id } = req.params; // chatId
@@ -128,30 +127,3 @@ export const adminSendMessage = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
-
-// export const updateOfferStatus = async (req, res) => {
-//   try {
-//     const { messageId } = req.params;
-//     const { status, amount } = req.body;
-
-//     const message = await Message.findById(messageId);
-//     if (!message || message.type !== "offer")
-//       return res.status(400).json({ message: "Invalid offer message" });
-
-//     message.offer.status = status;
-//     if (status === "counter" && amount) message.offer.amount = amount;
-//     await message.save();
-
-//     // Notify both users about the update
-//     const chat = await Chat.findById(message.chatId);
-//     const participants = [chat.buyer.toString(), chat.seller.toString()];
-//     participants.forEach((id) => {
-//       const socketId = getReceiverSocketId(id);
-//       if (socketId) io.to(socketId).emit("offerUpdated", message);
-//     });
-
-//     res.json({ success: true, data: message });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };

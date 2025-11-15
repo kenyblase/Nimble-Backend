@@ -164,6 +164,8 @@ export const initializePaystackPayment = async (req, res) => {
       ? Number(((totalAmount * product.category.commissionPercentage) / 100).toFixed(2))
       : 0;
 
+      console.log(totalAmount)
+
     // Initialize Paystack payment
     const paystackResponse = await axios.post(
       "https://api.paystack.co/transaction/initialize",
@@ -172,6 +174,7 @@ export const initializePaystackPayment = async (req, res) => {
         amount: totalAmount * 100,
         callback_url: process.env.PAYSTACK_CALLBACK_URL,
         metadata: {
+          isOrder: true,
           userId,
           vendorId,
           productId,
