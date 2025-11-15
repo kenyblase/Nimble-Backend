@@ -64,7 +64,8 @@ export const createOrderWithBalance = async (req, res) => {
           paymentStatus: "paid",
           paymentMethod: "balance",
           deliveryAddress,
-          paidAt: Date.now()
+          paidAt: Date.now(),
+          expectedDeliveryDate: Date.now() + 3 * 24 * 60 * 60 * 1000
         },
       ],
       { session }
@@ -163,8 +164,6 @@ export const initializePaystackPayment = async (req, res) => {
     const commissionAmount = product.category?.commissionPercentage
       ? Number(((totalAmount * product.category.commissionPercentage) / 100).toFixed(2))
       : 0;
-
-      console.log(totalAmount)
 
     // Initialize Paystack payment
     const paystackResponse = await axios.post(
@@ -270,7 +269,8 @@ export const verifyPaystackPayment = async (req, res) => {
           paymentMethod: "payment-gateway",
           deliveryFee,
           deliveryAddress,
-          paidAt: Date.now()
+          paidAt: Date.now(),
+          expectedDeliveryDate: Date.now() + 3 * 24 * 60 * 60 * 1000
         },
       ],
       { session }

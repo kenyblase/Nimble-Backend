@@ -17,7 +17,7 @@ const paymentSchema = new mongoose.Schema({
     paymentMethod: {
         type: String,
         required: true,
-        default: ''
+        default: 'Paystack'
     },
     status: {
         type: String,
