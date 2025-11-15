@@ -242,24 +242,21 @@ export const handleWithdrawalSuccess = async (data) => {
     }
 
     // Already successful?
-    if (withdrawal.status === "successful") {
+    if (withdrawal.status === "SUCCESS") {
       console.log("⚠️ handleWithdrawalSuccess: already successful", reference);
       return;
     }
 
     // mark successful
-    withdrawal.status = "successful";
+    withdrawal.status = "SUCCESS";
     withdrawal.processedAt = new Date();
     await withdrawal.save();
 
-    // create transaction
-    await Transaction.create({
-      user: withdrawal.userId,
-      type: "withdrawal",
-      amount: withdrawal.amount,
-      reference,
-      status: "successful",
-    });
+    // update transaction
+    await Transaction.findOneAndUpdate(
+      { reference },
+      { status: "successful" }
+    );
 
     const user = await User.findById(withdrawal.userId);
     if (!user) {
@@ -313,7 +310,7 @@ export const handleWithdrawalFailure = async (data) => {
       return;
     }
 
-    if (withdrawal.status === "failed") {
+    if (withdrawal.status === "FAILED") {
       console.log("⚠️ handleWithdrawalFailure: already failed", reference);
       return;
     }
@@ -325,20 +322,17 @@ export const handleWithdrawalFailure = async (data) => {
       return;
     }
 
-    withdrawal.status = "failed";
+    withdrawal.status = "FAILED";
     withdrawal.processedAt = new Date();
     await withdrawal.save();
 
     user.balance += withdrawal.amount;
     await user.save();
 
-    await Transaction.create({
-      user: user._id,
-      type: "withdrawal",
-      amount: withdrawal.amount,
-      reference,
-      status: "failed",
-    });
+    await Transaction.findOneAndUpdate(
+      { reference },
+      { status: "failed" }
+    );
 
     if (user.AppNotificationSettings?.includes("PAYMENTS")) {
       await Notification.create({

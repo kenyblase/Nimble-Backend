@@ -26,6 +26,7 @@ const withdrawalSchema = new mongoose.Schema({
         enum: ['PENDING', 'PROCESSED', 'SUCCESS', 'FAILED'],
         default: 'PENDING'
     },
+    processedAt: Date,
     transferId:{
         type: String
     },
