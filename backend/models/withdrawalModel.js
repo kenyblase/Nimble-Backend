@@ -32,6 +32,9 @@ const withdrawalSchema = new mongoose.Schema({
     },
     reference:{
         type: String
+    },
+    note:{
+        type: String
     }
 }, {timestamps: true})
 

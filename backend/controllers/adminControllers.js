@@ -2051,3 +2051,110 @@ export const toggleAppealStatus = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+export const getPayoutAnalytics = async (req, res) => {
+  try {
+    const [totalPayout, pendingPayout] = await Promise.all([
+      Withdrawal.aggregate([
+        { $match: { status: "SUCCESS" } },
+        { $group: { _id: null, totalAmount: { $sum: "$amount" } } }
+      ]),
+
+      Withdrawal.aggregate([
+        { $match: { status: "PENDING" } },
+        { $group: { _id: null, totalAmount: { $sum: "$amount" } } }
+      ])
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Payout analytics fetched successfully",
+      data: {
+        totalPayout: {
+          value: totalPayout[0]?.totalAmount || 0,
+        },
+        pendingPayout: {
+          value: pendingPayout[0]?.totalAmount || 0,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Payout Analytics Error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const getPayouts = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "", filter = "" } = req.query;
+
+    const pipeline = [
+      {
+        $lookup: {
+          from: "users",
+          localField: "userId",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+    ];
+
+    const match = {};
+
+    // 🔍 SEARCH
+    if (search) {
+      match.$or = [
+        { "user.firstName": { $regex: search, $options: "i" } },
+        { "user.lastName": { $regex: search, $options: "i" } },
+        { "user.email": { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (filter) {
+      match.status = filter;
+    }
+
+    if (Object.keys(match).length > 0) {
+      pipeline.push({ $match: match });
+    }
+
+    const totalPipeline = [...pipeline, { $count: "total" }];
+    const totalDocs = await Withdrawal.aggregate(totalPipeline);
+    const total = totalDocs[0]?.total || 0;
+
+    pipeline.push({ $sort: { createdAt: -1 } });
+    pipeline.push({ $skip: (page - 1) * Number(limit) });
+    pipeline.push({ $limit: Number(limit) });
+
+    const withdrawals = await Withdrawal.aggregate(pipeline);
+
+    return res.status(200).json({
+      success: true,
+      message: "Withdrawals fetched successfully",
+      withdrawals,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / limit),
+      totalWithdrawals: total,
+    });
+
+  } catch (error) {
+    console.error("Error fetching withdrawals:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const getPayout = async(req, res)=>{
+    try {
+        const {id} = req.params
+    
+        const payout = await Withdrawal.findById(id).populate('userId', 'firstName lastName')
+    
+        if(!payout) return res.status(400).json({message: 'Payout Not Found'})
+    
+        return res.status(200).json(payout)
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({message: "internal Server Error"})
+    }
+}
