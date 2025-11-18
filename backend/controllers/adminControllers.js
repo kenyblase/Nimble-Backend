@@ -194,6 +194,7 @@ export const getLatestTransactions = async (req, res) => {
 
     const transactions = await Transaction.find(query)
       .populate('user', 'firstName lastName')
+      .populate('buyer', 'firstName lastName')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -1069,47 +1070,44 @@ export const getTransactionAnalytics = async (req, res) => {
       Transaction.find({
         type: "deposit",
         status: "successful",
-        createdAt: { $gte: startOfToday, $lte: endOfToday },
       }),
       Transaction.find({
         type: "deposit",
         status: "successful",
-        createdAt: { $gte: startOfYesterday, $lte: endOfYesterday },
+        createdAt: { $lte: endOfYesterday },
       }),
     ]);
 
     const [todaySales, yesterdaySales] = await Promise.all([
-      Order.find({
-        paymentStatus: "paid",
-        paymentMethod: { $ne: "balance" },
-        createdAt: { $gte: startOfToday, $lte: endOfToday },
+      Transaction.find({
+        type: "sales",
+        status: "successful",
       }),
-      Order.find({
-        paymentStatus: "paid",
-        paymentMethod: { $ne: "balance" },
-        createdAt: { $gte: startOfYesterday, $lte: endOfYesterday },
+      Transaction.find({
+        type: "sales",
+        status: "successful",
+        createdAt: { $lte: endOfYesterday },
       }),
     ]);
 
     const todayPayIn =
       todayDeposits.reduce((a, c) => a + c.amount, 0) +
-      todaySales.reduce((a, c) => a + c.totalAmount, 0);
+      todaySales.reduce((a, c) => a + c.amount, 0);
 
     const yesterdayPayIn =
       yesterdayDeposits.reduce((a, c) => a + c.amount, 0) +
-      yesterdaySales.reduce((a, c) => a + c.totalAmount, 0);
+      yesterdaySales.reduce((a, c) => a + c.amount, 0);
 
     // --- PAY-OUT ---
     const [todayWithdrawals, yesterdayWithdrawals] = await Promise.all([
       Transaction.find({
         type: "withdrawal",
         status: "successful",
-        createdAt: { $gte: startOfToday, $lte: endOfToday },
       }),
       Transaction.find({
         type: "withdrawal",
         status: "successful",
-        createdAt: { $gte: startOfYesterday, $lte: endOfYesterday },
+        createdAt: { $lte: endOfYesterday },
       }),
     ]);
 
@@ -1648,6 +1646,7 @@ export const getTotalCommissionAnalytics = async (req, res) => {
         startDate = new Date(now);
         startDate.setDate(now.getDate() - 1);
         startDate.setHours(0, 0, 0, 0);
+
         endDate = new Date(startDate);
         endDate.setHours(23, 59, 59, 999);
         break;
@@ -1656,80 +1655,57 @@ export const getTotalCommissionAnalytics = async (req, res) => {
         startDate = new Date(now);
         startDate.setDate(now.getDate() - now.getDay());
         startDate.setHours(0, 0, 0, 0);
-        endDate = new Date(now);
+
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
         break;
 
       case "thisMonth":
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = new Date(now);
+
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
         break;
 
       default: // today
         startDate = new Date(now);
         startDate.setHours(0, 0, 0, 0);
+
         endDate = new Date(now);
         endDate.setHours(23, 59, 59, 999);
     }
 
-    // --- Aggregation to compute total commission across all categories ---
+    // ---- AGGREGATE ----
     const pipeline = [
       {
         $match: {
-          status: "completed",
+          transactionStatus: "completed", 
           createdAt: { $gte: startDate, $lte: endDate },
-        },
-      },
-      {
-        $lookup: {
-          from: "products",
-          localField: "product",
-          foreignField: "_id",
-          as: "product",
-        },
-      },
-      { $unwind: "$product" },
-      {
-        $lookup: {
-          from: "categories",
-          localField: "product.category",
-          foreignField: "_id",
-          as: "category",
-        },
-      },
-      { $unwind: "$category" },
-      {
-        $project: {
-          commission: {
-            $divide: [
-              { $multiply: ["$amount", "$category.commissionPercentage"] },
-              100,
-            ],
-          },
         },
       },
       {
         $group: {
           _id: null,
-          totalCommission: { $sum: "$commission" },
+          totalCommission: { $sum: "$commissionAmount" },
         },
       },
     ];
 
     const result = await Order.aggregate(pipeline);
-    const totalCommission = result[0]?.totalCommission || 0;
+
+    const totalCommission =
+      result.length > 0 ? Number(result[0].totalCommission.toFixed(2)) : 0;
 
     res.status(200).json({
-      totalCommission: Number(totalCommission.toFixed(2)),
+      success: true,
+      totalCommission,
       filter,
       startDate,
       endDate,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      message: "Failed to calculate total commission analytics",
-      error: error.message,
-    });
+    console.error("Commission analytics error:", error);
+    res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
@@ -1745,6 +1721,7 @@ export const getCategoryCommissionAnalytics = async (req, res) => {
         startDate = new Date(now);
         startDate.setDate(now.getDate() - 1);
         startDate.setHours(0, 0, 0, 0);
+
         endDate = new Date(startDate);
         endDate.setHours(23, 59, 59, 999);
         break;
@@ -1753,17 +1730,22 @@ export const getCategoryCommissionAnalytics = async (req, res) => {
         startDate = new Date(now);
         startDate.setDate(now.getDate() - now.getDay());
         startDate.setHours(0, 0, 0, 0);
-        endDate = new Date(now);
+
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
         break;
 
       case "thisMonth":
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        endDate = new Date(now);
+
+        endDate = new Date();
+        endDate.setHours(23, 59, 59, 999);
         break;
 
-      default:
+      default: // today
         startDate = new Date(now);
         startDate.setHours(0, 0, 0, 0);
+
         endDate = new Date(now);
         endDate.setHours(23, 59, 59, 999);
     }
@@ -1787,10 +1769,10 @@ export const getCategoryCommissionAnalytics = async (req, res) => {
     }
 
     // --- Aggregation to compute commission for a specific category ---
-    const pipeline = [
+     const pipeline = [
       {
         $match: {
-          status: "completed",
+          transactionStatus: "completed", 
           createdAt: { $gte: startDate, $lte: endDate },
         },
       },
@@ -1805,32 +1787,13 @@ export const getCategoryCommissionAnalytics = async (req, res) => {
       { $unwind: "$product" },
       {
         $match: {
-          "product.category": { $eq: new mongoose.Types.ObjectId(categoryId) },
-        },
-      },
-      {
-        $lookup: {
-          from: "categories",
-          localField: "product.category",
-          foreignField: "_id",
-          as: "category",
-        },
-      },
-      { $unwind: "$category" },
-      {
-        $project: {
-          commission: {
-            $divide: [
-              { $multiply: ["$amount", "$category.commissionPercentage"] },
-              100,
-            ],
-          },
+          "product.category": new mongoose.Types.ObjectId(categoryId),
         },
       },
       {
         $group: {
           _id: null,
-          categoryCommission: { $sum: "$commission" },
+          categoryCommission: { $sum: "$commissionAmount" },
         },
       },
     ];
