@@ -2,7 +2,7 @@ import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
 import upload from '../utils/multer.js'
-import { approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettings, getSettingByKey, editUser, toggleUserStatus, getListedProducts, getProductById, toggleProductStatus, getListedProductsByUser, getListedProductsByCategory, getOrders, getOrderById, cancelOrder, markOrderCompleted, getAppeals, getAppeal, toggleAppealStatus, getPayoutAnalytics, getPayouts, getPayout } from "../controllers/adminControllers.js";
+import { approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettings, getSettingByKey, editUser, toggleUserStatus, getListedProducts, getProductById, toggleProductStatus, getListedProductsByUser, getListedProductsByCategory, getOrders, getOrderById, cancelOrder, markOrderCompleted, getAppeals, getAppeal, toggleAppealStatus, getPayoutAnalytics, getPayouts, getPayout, createPayout } from "../controllers/adminControllers.js";
 import { checkAdminPermission } from "../middleware/checkAdminPermissions.js";
 
 const router = Router()
@@ -59,9 +59,9 @@ router.delete('/:id/delete', deleteAdmin)
 
 router.get('/get-withdrawals', getWithdrawals)
 
-router.get('/approve-withdrawal/:withdrawalId', approveWithdrawal)
+router.put('/payouts/accept/:withdrawalId', approveWithdrawal)
 
-router.get('/reject-withdrawal/:withdrawalId', rejectWithdrawal)
+router.put('/payouts/reject/:withdrawalId', rejectWithdrawal)
 
 router.get('/get-selected-withdrawal/:id', getSelectedWithdrawal)
 
@@ -104,5 +104,7 @@ router.get('/payouts/analytics', getPayoutAnalytics);
 router.get('/payouts', getPayouts);
 
 router.get('/payouts/:id', getPayout);
+
+router.post('/payouts/create', createPayout);
 
 export default router

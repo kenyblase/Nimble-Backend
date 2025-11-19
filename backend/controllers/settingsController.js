@@ -72,35 +72,43 @@ export const updateBusinessProfile = async(req, res)=>{
     }
 }
 
-export const addWithdrawalOptions = async(req, res)=>{
-    try {
-        const userId = req.userId
-        const {newOption} = req.body
-        const user = await User.findById(userId);
-        if (!user) return { success: false, message: 'User not found' };
+export const addWithdrawalOptions = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { newOption } = req.body;
 
+    const user = await User.findById(userId);
+    if (!user) return res.status(400).json({ message: 'User not found' });
 
-        const exists = user.withdrawalOptions.some(
-            option => option.accountNumber === newOption.accountNumber && option.bankName === newOption.bankName
-        );
+    const exists = user.withdrawalOptions.some(
+      option =>
+        option.accountNumber === newOption.accountNumber &&
+        option.bankName === newOption.bankName
+    );
 
-        if (exists) {
-            return res.status(400).json({message: 'Withdrawal Option Already Exists'})
-        }
-
-        if (newOption.isDefault) {
-            user.withdrawalOptions.forEach(option => (option.isDefault = false));
-        }
-
-        user.withdrawalOptions.push(newOption);
-        await user.save();
-
-        return res.status(200).json({message: 'Withdrawal Option Added Successfully'})
-    } catch (error) {
-        console.error('Error adding withdrawal option:', error);
-        return res.status(500).json({message: 'Internal Server Error'})
+    if (exists) {
+      return res.status(400).json({ message: 'Withdrawal Option Already Exists' });
     }
-}
+
+    // If this is the first option, force it to be the default
+    if (user.withdrawalOptions.length === 0) {
+      newOption.isDefault = true;
+    }
+
+    // If user explicitly sets this new option as default
+    if (newOption.isDefault) {
+      user.withdrawalOptions.forEach(option => (option.isDefault = false));
+    }
+
+    user.withdrawalOptions.push(newOption);
+    await user.save();
+
+    return res.status(200).json({ message: 'Withdrawal Option Added Successfully' });
+  } catch (error) {
+    console.error('Error adding withdrawal option:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
 
 export const setDefaultWithdrawalOption = async (req, res) => {
     try {
@@ -134,31 +142,51 @@ export const setDefaultWithdrawalOption = async (req, res) => {
     }
 };
 
-export const deleteWithdrawalOption = async(req, res)=>{
-    try {
-        const userId = req.userId
-        const {accountNumber, bankName} = req.body
+export const deleteWithdrawalOption = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { accountNumber, bankName } = req.body;
 
-        const user = await User.findById(userId);
-        if (!user) return res.status(400).json({message: 'User not found'})
+    const user = await User.findById(userId);
+    if (!user) return res.status(400).json({ message: 'User not found' });
 
-        const updatedOptions = user.withdrawalOptions.filter(
-            option => !(option.accountNumber === accountNumber && option.bankName === bankName)
-        );
+    // Find the option being deleted
+    const optionToDelete = user.withdrawalOptions.find(
+      option =>
+        option.accountNumber === accountNumber &&
+        option.bankName === bankName
+    );
 
-        if (updatedOptions.length === user.withdrawalOptions.length) {
-            return res.status(400).json({ message: 'Withdrawal option not found' })
-        }
-
-        user.withdrawalOptions = updatedOptions;
-        await user.save();
-
-        return res.status(200).json({ message: 'Withdrawal option deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting withdrawal option:', error);
-        return res.status(500).json({message: 'Internal Server Error'})
+    if (!optionToDelete) {
+      return res.status(400).json({ message: 'Withdrawal option not found' });
     }
-}
+
+    const wasDefault = optionToDelete.isDefault;
+
+    // Filter out the deleted option
+    const updatedOptions = user.withdrawalOptions.filter(
+      option =>
+        !(option.accountNumber === accountNumber && option.bankName === bankName)
+    );
+
+    user.withdrawalOptions = updatedOptions;
+
+    // If deleted option was default → set new default if any option exists
+    if (wasDefault && user.withdrawalOptions.length > 0) {
+      user.withdrawalOptions[0].isDefault = true; // set the first option as default
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      message: 'Withdrawal option deleted successfully',
+      options: user.withdrawalOptions
+    });
+  } catch (error) {
+    console.error('Error deleting withdrawal option:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
 
 export const updateEmailNotificationSettings = async(req, res)=>{
     try {

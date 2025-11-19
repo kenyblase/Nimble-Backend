@@ -1350,7 +1350,7 @@ export const approveWithdrawal = async (req, res) => {
             metadata: { withdrawalId: withdrawal._id }
         });
 
-        res.status(200).json({ status: "success", message: "Withdrawal approved and processed" });
+        res.status(200).json({ status: "success", message: "Withdrawal approved and processed", data: withdrawal });
     } catch (error) {
         console.error(error.response ? error.response.data : error.message);
         return res.status(500).json({ message: "Approval failed", error: error.message });
@@ -1417,11 +1417,11 @@ export const rejectWithdrawal = async (req, res) => {
             userId: user._id,
             title: "Withdrawal Rejected",
             message: `Your withdrawal request of ${withdrawal.amount} has been rejected by the admin.`,
-            notificationType: "WITHDRAWALS",
+            notificationType: "PAYMENTS",
             metadata: { withdrawalId: withdrawal._id }
         });
 
-        res.status(200).json({ status: "success", message: "Withdrawal rejected and refunded" });
+        res.status(200).json({ status: "success", message: "Withdrawal rejected and refunded", data: withdrawal });
     } catch (error) {
         console.error(error.message);
         return res.status(500).json({ message: "Rejection failed", error: error.message });
@@ -2121,3 +2121,50 @@ export const getPayout = async(req, res)=>{
         return res.status(500).json({message: "internal Server Error"})
     }
 }
+
+export const createPayout = async (req, res) => {
+    const { email, amount, note } = req.body
+
+    if(!email || !amount)  return res.status(400).json({ message: "Email and amount required" });
+
+    try {
+        const user = await User.findOne({ email });
+        if (!user) return res.status(400).json({ message: "User not found" });
+
+        const defaultWithdrawalOption = user.withdrawalOptions.find(option => option.isDefault);
+        if (!defaultWithdrawalOption) {
+            return res.status(400).json({ message: "No default withdrawal bank set. Please set a default withdrawal option." });
+        }
+
+        const { bankCode, accountNumber } = defaultWithdrawalOption;
+
+        if (!amount) {
+            return res.status(400).json({ message: "Invalid Request: Amount is required." });
+        }
+
+        if (user.balance < amount) {
+            return res.status(400).json({ message: "Insufficient User Balance" });
+        }
+
+        const reference = `WD_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+        user.balance -= amount;
+        await user.save();
+
+        const withdrawal = new Withdrawal({
+            userId: user._id,
+            amount,
+            bankCode,
+            accountNumber,
+            status: "PENDING",
+            reference,
+            note
+        });
+        await withdrawal.save();
+
+        res.status(200).json({ status: "success", message: "Payout successfully created", data:withdrawal });
+    } catch (error) {
+        console.error(error.message);
+        return res.status(500).json({ message: "Failed to create payout", error: error.message });
+    }
+};

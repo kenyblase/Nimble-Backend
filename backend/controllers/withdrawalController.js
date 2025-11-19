@@ -60,7 +60,8 @@ export const initiateWithdrawal = async (req, res) => {
             bankCode,
             accountNumber,
             status: "PENDING",
-            reference
+            reference,
+            note: req.body.note || ''
         });
         await withdrawal.save();
 
