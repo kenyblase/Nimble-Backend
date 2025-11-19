@@ -359,13 +359,13 @@ export const getOrdersByUser = async (req, res) => {
 
         if(paymentStatus){
             const orders = await Order.find({ user: userId, paymentStatus: paymentStatus })
-                .populate('products.product', 'name price')
+                .populate('product', 'name price')
                 .populate('vendor', 'firstName lastName'); 
     
             return res.status(200).json({ orders });
         }else{
             const orders = await Order.find({ user: userId})
-                .populate('products.product', 'name price')
+                .populate('product', 'name price')
                 .populate('vendor', 'firstName lastName'); 
     
             return res.status(200).json({ orders });

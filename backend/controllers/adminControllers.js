@@ -14,6 +14,7 @@ import Category from "../models/categoryModel.js"
 import Setting from "../models/generalSettingsModel.js";
 import Notification from '../models/notificationModel.js';
 import Appeal from '../models/appealModel.js';
+import { defaultSettings } from '../utils/defaultsettings.js';
 
 export const createAdmin = async (req, res) => {
     const {firstName, lastName, email, phone, password, role} = req.body
@@ -1837,20 +1838,43 @@ export const upsertSetting = async (req, res) => {
   }
 };
 
-export const getSettings = async (req, res) => {
+export const getSettingByKey = async (req, res) => {
   try {
-    const settings = await Setting.find();
-    res.status(200).json({ success: true, data: settings });
+    const key = req.params.key;
+
+    const defaultValue = defaultSettings[key] ?? null;
+
+    const setting = await Setting.findOneAndUpdate(
+      { key },
+      { 
+        $setOnInsert: { 
+          key, 
+          value: defaultValue 
+        } 
+      },
+      { new: true, upsert: true }
+    );
+
+    return res.status(200).json({ success: true, data: setting });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ success: false, message: error.message });
   }
 };
 
-export const getSettingByKey = async (req, res) => {
+export const updateSetting = async (req, res) => {
   try {
-    const setting = await Setting.findOne({ key: req.params.key });
-    if (!setting) return res.status(404).json({ success: false, message: "Setting not found" });
+    const key = req.params.key;
+    const { value } = req.body;
+
+    const setting = await Setting.findOneAndUpdate(
+      { key },
+      { value, updatedAt: Date.now(), updatedBy: req.userId },
+      { new: true }
+    );
+
     res.status(200).json({ success: true, data: setting });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

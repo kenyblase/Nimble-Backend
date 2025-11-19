@@ -39,7 +39,9 @@ export const getChatById = async (req, res) => {
 
 export const createChat = async (req, res) => {
   try {
-    const { buyer, seller, product } = req.body;
+    const { seller, product } = req.body;
+
+    const buyer = req.userId
 
     if (!buyer || !seller || !product) {
       return res.status(400).json({ success: false, message: "buyer, seller, and product are required" });
