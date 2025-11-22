@@ -2,8 +2,7 @@ import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
 import upload from '../utils/multer.js'
-import { approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettingByKey, editUser, toggleUserStatus, getListedProducts, getProductById, toggleProductStatus, getListedProductsByUser, getListedProductsByCategory, getOrders, getOrderById, cancelOrder, markOrderCompleted, getAppeals, getAppeal, toggleAppealStatus, getPayoutAnalytics, getPayouts, getPayout, createPayout, updateSetting } from "../controllers/adminControllers.js";
-import { checkAdminPermission } from "../middleware/checkAdminPermissions.js";
+import { approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettingByKey, editUser, toggleUserStatus, getListedProducts, getProductById, toggleProductStatus, getListedProductsByUser, getListedProductsByCategory, getOrders, getOrderById, cancelOrder, markOrderCompleted, getAppeals, getAppeal, toggleAppealStatus, getPayoutAnalytics, getPayouts, getPayout, createPayout, updateSetting, getReports, getReport, toggleReportStatus } from "../controllers/adminControllers.js";
 
 const router = Router()
 
@@ -98,6 +97,12 @@ router.get("/appeals", getAppeals);
 router.get('/appeals/:id', getAppeal)
 
 router.put('/appeals/:id/status', toggleAppealStatus);
+
+router.get("/reports", getReports);
+
+router.get('/reports/:id', getReport)
+
+router.put('/reports/:id/status', toggleReportStatus);
 
 router.get('/payouts/analytics', getPayoutAnalytics);
 

@@ -1,14 +1,11 @@
-import cron from 'node-cron'
-import Notification from '../models/notificationModel.js'
+import cron from "node-cron";
+import https from "https";
 
-cron.schedule('0 0 * * *', async()=>{
-    try {
-        const thirtyDaysAgo = new Date()
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
-        const result = await Notification.deleteMany({createdAt: { $lt: thirtyDaysAgo}})
-        console.log(`Deleted ${result.deletedCount} old notifications`)
-    } catch (error) {
-        console.log('error clearing old notifications',error)
-    }
-})
+export const job = cron.schedule("*/14 * * * *", function () {
+  https
+    .get(`${process.env.API_URL}/api/health`, (res) => {
+      if (res.statusCode === 200) console.log("GET request sent successfully");
+      else console.log("GET request failed", res.statusCode);
+    })
+    .on("error", (e) => console.error("Error while sending request", e));
+});

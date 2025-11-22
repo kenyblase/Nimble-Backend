@@ -15,6 +15,7 @@ import Setting from "../models/generalSettingsModel.js";
 import Notification from '../models/notificationModel.js';
 import Appeal from '../models/appealModel.js';
 import { defaultSettings } from '../utils/defaultsettings.js';
+import Report from '../models/reportModel.js';
 
 export const createAdmin = async (req, res) => {
     const {firstName, lastName, email, phone, password, role} = req.body
@@ -2035,6 +2036,190 @@ export const toggleAppealStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Error toggling appeal status:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const getReports = async (req, res) => {
+  try {
+    const {
+      type,
+      search = "",
+      status,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    const skip = (page - 1) * limit;
+
+    const matchConditions = {};
+    if (type) matchConditions.type = type;
+    if (status !== 'all') matchConditions.status = status;
+
+    const searchCondition = search
+      ? {
+          $or: [
+            { subject: { $regex: search, $options: "i" } },
+            { "reportedUser.firstName": { $regex: search, $options: "i" } },
+            { "reportedUser.lastName": { $regex: search, $options: "i" } },
+            { "reporter.firstName": { $regex: search, $options: "i" } },
+            { "reporter.lastName": { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const pipeline = [
+      {
+        $lookup: {
+          from: "users",
+          localField: "reportedUser",
+          foreignField: "_id",
+          as: "reportedUser",
+        },
+      },
+      { $unwind: { path: "$reportedUser", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "reporter",
+          foreignField: "_id",
+          as: "reporter",
+        },
+      },
+      { $unwind: { path: "$reporter", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "admins",
+          localField: "resolvedBy",
+          foreignField: "_id",
+          as: "resolvedBy",
+        },
+      },
+      { $unwind: { path: "$resolvedBy", preserveNullAndEmptyArrays: true } },
+      {
+        $match: {
+          ...matchConditions,
+          ...searchCondition,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: parseInt(limit) },
+      {
+        $project: {
+          _id: 1,
+          subject: 1,
+          order:1,
+          category: 1,
+          description: 1,
+          status: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          "reportedUser._id": 1,
+          "reportedUser.firstName": 1,
+          "reportedUser.lastName": 1,
+          "reporter._id": 1,
+          "reporter.firstName": 1,
+          "reporter.lastName": 1,
+          "resolvedBy._id": 1,
+          "resolvedBy.firstName": 1,
+          "resolvedBy.lastName": 1,
+          resolutionNote: 1,
+        },
+      },
+    ];
+
+    const appeals = await Report.aggregate(pipeline);
+
+    // Count pipeline (simplified)
+    const countPipeline = [
+      {
+        $lookup: {
+          from: "users",
+          localField: "reportedUser",
+          foreignField: "_id",
+          as: "reportedUser",
+        },
+      },
+      { $unwind: { path: "$reportedUser", preserveNullAndEmptyArrays: true } },
+
+      {
+        $lookup: {
+          from: "users",
+          localField: "reporter",
+          foreignField: "_id",
+          as: "reporter",
+        },
+      },
+      { $unwind: { path: "$reporter", preserveNullAndEmptyArrays: true } },
+
+      {
+        $match: {
+          ...matchConditions,
+          ...searchCondition,
+        },
+      },
+
+      { $count: "total" },
+    ];
+
+    const totalResult = await Report.aggregate(countPipeline);
+    const total = totalResult[0]?.total || 0;
+
+    res.status(200).json({
+      total,
+      currentPage: Number(page),
+      totalPages: Math.ceil(total / limit),
+      appeals,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Failed to fetch appeals" });
+  }
+};
+
+export const getReport = async(req, res)=>{
+    try {
+        const {id} = req.params
+    
+        const report = await Report.findById(id)
+          .populate('reportedUser', 'firstName lastName')
+          .populate('reporter', 'firstName lastName')
+    
+        if(!report) return res.status(400).json({message: 'Report Not Found'})
+
+    
+        return res.status(200).json(report)
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json({message: "internal Server Error"})
+    }
+}
+
+export const toggleReportStatus = async (req, res) => {
+  try {
+    const { id } = req.params;        
+    const { status } = req.body;         
+
+    if (!status) {
+      return res.status(400).json({ success: false, message: 'Status is required' });
+    }
+
+    const report = await Report.findById(id);
+    if (!report) {
+      return res.status(404).json({ success: false, message: 'Report not found' });
+    }
+
+    report.status = status;
+    await report.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Report status changed to ${status}`,
+      data: report
+    });
+  } catch (error) {
+    console.error('Error toggling report status:', error);
     return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
