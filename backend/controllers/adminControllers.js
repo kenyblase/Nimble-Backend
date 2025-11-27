@@ -2108,9 +2108,7 @@ export const getReports = async (req, res) => {
       {
         $project: {
           _id: 1,
-          subject: 1,
-          order:1,
-          category: 1,
+          reason: 1,
           description: 1,
           status: 1,
           createdAt: 1,
@@ -2129,7 +2127,7 @@ export const getReports = async (req, res) => {
       },
     ];
 
-    const appeals = await Report.aggregate(pipeline);
+    const reports = await Report.aggregate(pipeline);
 
     // Count pipeline (simplified)
     const countPipeline = [
@@ -2170,7 +2168,7 @@ export const getReports = async (req, res) => {
       total,
       currentPage: Number(page),
       totalPages: Math.ceil(total / limit),
-      appeals,
+      reports,
     });
   } catch (error) {
     console.error(error);
