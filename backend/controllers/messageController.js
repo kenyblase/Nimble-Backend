@@ -36,6 +36,15 @@ export const sendMessage = async (req, res) => {
       extraCharge
     });
 
+    if (type === "offer" && offer?.initialOfferMessageId && offer?.status) {
+      const previousOffer = await Message.findById(offer.initialOfferMessageId);
+
+      if (previousOffer) {
+        previousOffer.offer.status = offer.status;
+        await previousOffer.save();
+      }
+    }
+
     chat.lastMessage = text || type;
     chat.lastMessageSentAt = Date.now()
     await chat.save();

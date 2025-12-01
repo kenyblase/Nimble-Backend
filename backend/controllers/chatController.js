@@ -2,7 +2,9 @@ import Chat from "../models/chatModel.js";
 import Message from "../models/messageModel.js";
 import Setting from "../models/generalSettingsModel.js";
 import Admin from "../models/adminModel.js";
+import Notification from "../models/notificationModel.js";
 import { getReceiverSocketId, io } from "../utils/socket.js";
+import User from "../models/userModel.js";
 
 export const getChats = async (req, res) => {
   try {
@@ -71,6 +73,10 @@ export const reportChat = async (req, res) => {
     const { reason } = req.body;
     const userId = req.userId;
 
+    const user = await User.findById(userId).select('firstName lastName profilePic')
+
+    if(!user) return res.status(400).json({message: 'User not found'})
+
     const chat = await Chat.findByIdAndUpdate(
       id,
       {
@@ -105,6 +111,20 @@ export const reportChat = async (req, res) => {
     chat.adminInvolved = [...new Set([...chat.adminInvolved.map(String), ...mediatingAdmins.map(a => a._id.toString())])];
 
     await chat.save();
+
+    const notificationsPayload = mediatingAdmins.map((admin) => ({
+      userId: admin._id,
+      title: `${user?.firstName} ${user?.lastName} invited you to a chat.`,
+      message: chat.lastMessage || 'No messages yet',
+      notificationType: "CHATS",
+      metadata: {
+        chatId: chat._id.toString(),
+        reportedBy: user,
+        reason
+      }
+    }));
+
+    await Notification.insertMany(notificationsPayload);
 
     res.json({
       success: true,

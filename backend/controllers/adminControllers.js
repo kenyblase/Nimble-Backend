@@ -2375,3 +2375,67 @@ export const createPayout = async (req, res) => {
         return res.status(500).json({ message: "Failed to create payout", error: error.message });
     }
 };
+
+export const getNotifications = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    let {
+      page = 1,
+      limit = 10,
+      isRead,
+      isArchived,
+      notificationType,
+    } = req.query;
+
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    const query = { userId };
+
+    if (isRead === "true" || isRead === "false") {
+      query.isRead = isRead === "true";
+    }
+
+    if (isArchived === "true" || isArchived === "false") {
+      query.isArchived = isArchived === "true";
+    }
+
+    if (notificationType) {
+      query.notificationType = notificationType;
+    }
+
+    const skip = (page - 1) * limit;
+
+    // Fetch paginated notifications
+    const notifications = await Notification.find(query)
+      .sort({ createdAt: -1 }) // newest first
+      .skip(skip)
+      .limit(limit);
+
+    // Count total
+    const total = await Notification.countDocuments(query);
+
+    // Count unread (for UI badges)
+    const unreadCount = await Notification.countDocuments({
+      userId,
+      isRead: false,
+      isArchived: false,
+    });
+
+    res.json({
+      success: true,
+      data: notifications,
+      pagination: {
+        total,
+        unreadCount,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

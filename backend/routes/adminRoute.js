@@ -2,7 +2,7 @@ import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { isAdmin } from "../middleware/isAdmin.js";
 import upload from '../utils/multer.js'
-import { approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettingByKey, editUser, toggleUserStatus, getListedProducts, getProductById, toggleProductStatus, getListedProductsByUser, getListedProductsByCategory, getOrders, getOrderById, cancelOrder, markOrderCompleted, getAppeals, getAppeal, toggleAppealStatus, getPayoutAnalytics, getPayouts, getPayout, createPayout, updateSetting, getReports, getReport, toggleReportStatus } from "../controllers/adminControllers.js";
+import { approveWithdrawal, blockUser, deleteAdmin, deleteProduct, editAdmin, getAdmins, getDashboardAnalytics, getLatestTransactions, getListingAnalytics, getOrderAnalytics, getWithdrawals, getTransactionAnalytics, getUser, getUsers, getSelectedWithdrawal, rejectWithdrawal, adminLogIn, createCategory, getAllCategories, getCategoriesWithProductCount, getTotalCommissionAnalytics, getCategoryCommissionAnalytics, getCategoryById, toggleCategoryActiveStatus, updateCategory, deleteCategory, createAdmin, getUserAnalytics, upsertSetting, getSettingByKey, editUser, toggleUserStatus, getListedProducts, getProductById, toggleProductStatus, getListedProductsByUser, getListedProductsByCategory, getOrders, getOrderById, cancelOrder, markOrderCompleted, getAppeals, getAppeal, toggleAppealStatus, getPayoutAnalytics, getPayouts, getPayout, createPayout, updateSetting, getReports, getReport, toggleReportStatus, getNotifications } from "../controllers/adminControllers.js";
 
 const router = Router()
 
@@ -111,5 +111,7 @@ router.get('/payouts', getPayouts);
 router.get('/payouts/:id', getPayout);
 
 router.post('/payouts/create', createPayout);
+
+router.get('/notifications', getNotifications);
 
 export default router
