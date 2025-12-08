@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { verifyToken } from "../middleware/verifyToken.js";
-import { addWithdrawalOptions, changePassword, deleteWithdrawalOption, setDefaultWithdrawalOption, updateBusinessProfile, updateEmailNotificationSettings, updateInAppNotificationSettings, updateProfile } from '../controllers/settingsController.js'
+import { addDeliveryAddress, addWithdrawalOptions, changePassword, deleteDeliveryAddress, deleteWithdrawalOption, setDefaultDeliveryAddress, setDefaultWithdrawalOption, updateBusinessProfile, updateEmailNotificationSettings, updateInAppNotificationSettings, updateProfile } from '../controllers/settingsController.js'
 
 const router = Router()
 
@@ -13,6 +13,12 @@ router.post('/add-withdrawal-option', verifyToken, addWithdrawalOptions)
 router.post('/set-withdrawal-option', verifyToken, setDefaultWithdrawalOption)
 
 router.delete('/delete-withdrawal-option', verifyToken, deleteWithdrawalOption)
+
+router.post('/add-delivery-address', verifyToken, addDeliveryAddress)
+
+router.post('/set-delivery-address', verifyToken, setDefaultDeliveryAddress)
+
+router.delete('/delete-delivery-address', verifyToken, deleteDeliveryAddress)
 
 router.post('/email-notifications', verifyToken, updateEmailNotificationSettings)
 

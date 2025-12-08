@@ -262,3 +262,119 @@ export const changePassword = async(req, res)=>{
         res.status(500).json({message: 'Internal Server Error'})
     }
 }
+
+export const addDeliveryAddress = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { newAddress } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(400).json({ message: 'User not found' });
+
+    // Check for duplicates
+    const exists = user.deliveryAddress.some(addr =>
+      addr.name === newAddress.name &&
+      addr.address === newAddress.address &&
+      addr.phoneNumber === newAddress.phoneNumber &&
+      addr.city === newAddress.city &&
+      addr.state === newAddress.state
+    );
+
+    if (exists) {
+      return res.status(400).json({ message: 'Delivery address already exists' });
+    }
+
+    // If the first delivery address → set as default
+    if (user.deliveryAddress.length === 0) {
+      newAddress.isDefault = true;
+    }
+
+    // If the user explicitly sets this address as default
+    if (newAddress.isDefault) {
+      user.deliveryAddress.forEach(addr => (addr.isDefault = false));
+    }
+
+    user.deliveryAddress.push(newAddress);
+    await user.save();
+
+    return res.status(200).json({ message: 'Delivery address added successfully' });
+  } catch (error) {
+    console.error('Error adding delivery address:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+export const setDefaultDeliveryAddress = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { address, phoneNumber } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    let addressFound = false;
+
+    user.deliveryAddress.forEach(addr => {
+      if (addr.address === address && addr.phoneNumber === phoneNumber) {
+        addr.isDefault = true;
+        addressFound = true;
+      } else {
+        addr.isDefault = false;
+      }
+    });
+
+    if (!addressFound) {
+      return res.status(400).json({ message: 'Delivery address not found' });
+    }
+
+    await user.save();
+
+    return res.status(200).json({ message: 'Default delivery address set successfully' });
+  } catch (error) {
+    console.error('Error setting default delivery address:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+export const deleteDeliveryAddress = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { address, phoneNumber } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(400).json({ message: 'User not found' });
+
+    // Find the address being deleted
+    const addressToDelete = user.deliveryAddress.find(
+      addr =>
+        addr.address === address &&
+        addr.phoneNumber === phoneNumber
+    );
+
+    if (!addressToDelete) {
+      return res.status(400).json({ message: 'Delivery address not found' });
+    }
+
+    const wasDefault = addressToDelete.isDefault;
+
+    // Remove the address
+    user.deliveryAddress = user.deliveryAddress.filter(
+      addr => !(addr.address === address && addr.phoneNumber === phoneNumber)
+    );
+
+    // If deleted address was default → set new default
+    if (wasDefault && user.deliveryAddress.length > 0) {
+      user.deliveryAddress[0].isDefault = true;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      message: 'Delivery address deleted successfully',
+      deliveryAddress: user.deliveryAddress
+    });
+  } catch (error) {
+    console.error('Error deleting delivery address:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
