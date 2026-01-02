@@ -11,6 +11,8 @@ const io = new Server(server, {
       process.env.FRONTEND_URL,
       process.env.ADMIN_URL,
     ],
+    methods: ["GET", "POST"],
+    credentials: true
   },
 });
 
