@@ -171,6 +171,7 @@ export const initializePaystackPayment = async (req, res) => {
       {
         email: user.email,
         amount: totalAmount * 100,
+        channels: ["bank_transfer"],
         callback_url: process.env.PAYSTACK_CALLBACK_URL,
         metadata: {
           isOrder: true,
